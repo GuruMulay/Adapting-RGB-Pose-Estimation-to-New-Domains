@@ -28,7 +28,7 @@ class DataIteratorBase:
         while True:
             yield tuple(self._recv_arrays())
 
-    def gen(self):
+    def gen(self, n_stages):
         batches_x, batches_x1, batches_x2, batches_y1, batches_y2 = \
             [None]*self.batch_size, [None]*self.batch_size, [None]*self.batch_size, \
             [None]*self.batch_size, [None]*self.batch_size
@@ -76,13 +76,32 @@ class DataIteratorBase:
                 batch_y1 = np.concatenate(batches_y1)
                 batch_y2 = np.concatenate(batches_y2)
 
-                yield [batch_x, batch_x1,  batch_x2], \
-                       [batch_y1, batch_y2,
-                        batch_y1, batch_y2,
-                        batch_y1, batch_y2,
-                        batch_y1, batch_y2,
-                        batch_y1, batch_y2,
-                        batch_y1, batch_y2]
+#                 print("batch_x shape", batch_x.shape)
+#                 print("batch_x1 shape", batch_x1.shape)
+#                 print("batch_x2 shape", batch_x2.shape)
+#                 print("batch_y1 shape", batch_y1.shape)
+#                 print("batch_y2 shape", batch_y2.shape)
+                
+#                 file_num = np.random.randint(0, 100)
+#                 print("saving with random number ================================", file_num)
+#                 np.save('./npyfiles/batch_x_' + str(file_num) + '.npy', batch_x)
+#                 np.save('./npyfiles/batch_x1_' + str(file_num) + '.npy', batch_x1)
+#                 np.save('./npyfiles/batch_x2_' + str(file_num) + '.npy', batch_x2)
+#                 np.save('./npyfiles/batch_y1_' + str(file_num) + '.npy', batch_y1)
+#                 np.save('./npyfiles/batch_y2_' + str(file_num) + '.npy', batch_y2)
+                
+                # x1 and x2 are the masks peculiar to COCO dataset. Not required for EGGNOG dataset
+                # All y_ are ground truths. There are 12 of them because we have 6 stages x 2 outputs
+#                 yield [batch_x, batch_x1, batch_x2], \
+#                        [batch_y1, batch_y2,
+#                         batch_y1, batch_y2,
+#                         batch_y1, batch_y2,
+#                         batch_y1, batch_y2,
+#                         batch_y1, batch_y2,
+#                         batch_y1, batch_y2]
+                    
+                # for n staged network
+                yield [batch_x, batch_x1, batch_x2], [batch_y1, batch_y2] * n_stages
 
                 self.keypoints = [None] * self.batch_size
 
