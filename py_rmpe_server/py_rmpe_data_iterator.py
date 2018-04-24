@@ -25,6 +25,8 @@ class RawDataIterator:
 
         if self.shuffle:
             random.shuffle(keys)
+        
+        print("keys len, keys[0:2]", len(keys), keys[0:2])  # keys len, keys[0:2] 117873 ['0111017', '0031207']
 
         for key in keys:
 
@@ -34,10 +36,18 @@ class RawDataIterator:
             debug['img_path']=meta['img_path']
             debug['mask_miss_path'] = meta['mask_miss_path']
             debug['mask_all_path'] = meta['mask_all_path']
-
-            image, mask, meta, labels = self.transform_data(image, mask, meta)
+            
+            # image (368, 368, 3)
+            # print("mask_img shape", mask.shape)  # (424, 640)
+            image, mask, meta, labels = self.transform_data(image, mask, meta)  # transforms and generates ground truth hms
             image = np.transpose(image, (2, 0, 1))
-
+            
+#             print("gen of raw data iterator")
+#             print("data_image shape", image.shape)  # (3, 368, 368)
+#             print("mask_img shape", mask.shape)  # (46, 46)
+#             print("label shape", labels.shape)  # (57, 46, 46)
+#             print("kpts shape", meta['joints'].shape, "type(meta)", type(meta))  # (n, 18, 3)  n varies (depending on n_persons) 3 => x, y, ?
+            
             yield image, mask, labels, meta['joints']
 
     def num_keys(self):
@@ -65,10 +75,14 @@ class RawDataIterator:
 
         return img, mask_miss, meta
 
-    def transform_data(self, img, mask,  meta):
+    def transform_data(self, img, mask, meta):
 
         aug = AugmentSelection.random() if self.augment else AugmentSelection.unrandom()
+        print("transform data: before transform", img.shape)  
+        # transform data: before transform (427, 640, 3)  # could be any shape
+        # transform data: after transform (368, 368, 3)
         img, mask, meta = Transformer.transform(img, mask, meta, aug=aug)
+        print("transform data: after transform", img.shape)
         labels = self.heatmapper.create_heatmaps(meta['joints'], mask)
 
         return img, mask, meta, labels

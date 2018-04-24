@@ -43,9 +43,15 @@ class DataIteratorBase:
                 data_img, mask_img, label = foo
                 kpts = None
 
+            # print("data_image shape", data_img.shape)  # (3, 368, 368)
+            # print("mask_img shape", mask_img.shape)  # (46, 46)
+            # print("label shape", label.shape)  # (57, 46, 46)
+            # print("kpts shape", kpts.shape)  # (n, 18, 3)  n varies (depending on n_persons) 3 => x, y, ?
+            
             # image
-            dta_img = np.transpose(data_img, (1, 2, 0))
-            batches_x[sample_idx]=dta_img[np.newaxis, ...]
+            dta_img = np.transpose(data_img, (1, 2, 0))  # dta_img => (368, 368, 3)
+            batches_x[sample_idx]=dta_img[np.newaxis, ...]  
+            # dta_img[np.newaxis, ...]  => (1, 368, 368, 3)
 
             # mask - the same for vec_weights, heat_weights
             vec_weights = np.repeat(mask_img[:,:,np.newaxis], self.vec_num, axis=2)
@@ -70,17 +76,17 @@ class DataIteratorBase:
             if sample_idx == self.batch_size:
                 sample_idx = 0
 
-                batch_x = np.concatenate(batches_x)
+                batch_x = np.concatenate(batches_x)  # concatenate the list - batches_x
                 batch_x1 = np.concatenate(batches_x1)
                 batch_x2 = np.concatenate(batches_x2)
                 batch_y1 = np.concatenate(batches_y1)
                 batch_y2 = np.concatenate(batches_y2)
 
-#                 print("batch_x shape", batch_x.shape)
-#                 print("batch_x1 shape", batch_x1.shape)
-#                 print("batch_x2 shape", batch_x2.shape)
-#                 print("batch_y1 shape", batch_y1.shape)
-#                 print("batch_y2 shape", batch_y2.shape)
+#                 print("batch_x shape", batch_x.shape)  # (2, 368, 368, 3)
+#                 print("batch_x1 shape", batch_x1.shape)  # (2, 46, 46, 38)
+#                 print("batch_x2 shape", batch_x2.shape)  # (2, 46, 46, 19)
+#                 print("batch_y1 shape", batch_y1.shape)  # (2, 46, 46, 38)
+#                 print("batch_y2 shape", batch_y2.shape)  # (2, 46, 46, 19)
                 
 #                 file_num = np.random.randint(0, 100)
 #                 print("saving with random number ================================", file_num)
@@ -109,81 +115,81 @@ class DataIteratorBase:
         return self.keypoints
 
 
-class DataGeneratorClient(DataIteratorBase):
+# class DataGeneratorClient(DataIteratorBase):
 
-    def __init__(self, host, port, hwm=20, batch_size=10, limit=None):
+#     def __init__(self, host, port, hwm=20, batch_size=10, limit=None):
 
-        super(DataGeneratorClient, self).__init__(batch_size)
+#         super(DataGeneratorClient, self).__init__(batch_size)
 
-        self.limit = limit
-        self.records = 0
+#         self.limit = limit
+#         self.records = 0
 
-        """
-        :param host:
-        :param port:
-        :param hwm:, optional
-          The `ZeroMQ high-water mark (HWM)
-          <http://zguide.zeromq.org/page:all#High-Water-Marks>`_ on the
-          sending socket. Increasing this increases the buffer, which can be
-          useful if your data preprocessing times are very random.  However,
-          it will increase memory usage. There is no easy way to tell how
-          many batches will actually be queued with a particular HWM.
-          Defaults to 10. Be sure to set the corresponding HWM on the
-          receiving end as well.
-        :param batch_size:
-        :param shuffle:
-        :param seed:
-        """
-        self.host = host
-        self.port = port
-        self.hwm = hwm
-        self.socket = None
+#         """
+#         :param host:
+#         :param port:
+#         :param hwm:, optional
+#           The `ZeroMQ high-water mark (HWM)
+#           <http://zguide.zeromq.org/page:all#High-Water-Marks>`_ on the
+#           sending socket. Increasing this increases the buffer, which can be
+#           useful if your data preprocessing times are very random.  However,
+#           it will increase memory usage. There is no easy way to tell how
+#           many batches will actually be queued with a particular HWM.
+#           Defaults to 10. Be sure to set the corresponding HWM on the
+#           receiving end as well.
+#         :param batch_size:
+#         :param shuffle:
+#         :param seed:
+#         """
+#         self.host = host
+#         self.port = port
+#         self.hwm = hwm
+#         self.socket = None
 
-        context = zmq.Context()
-        self.socket = context.socket(zmq.PULL)
-        self.socket.set_hwm(self.hwm)
-        self.socket.connect("tcp://{}:{}".format(self.host, self.port))
+#         context = zmq.Context()
+#         self.socket = context.socket(zmq.PULL)
+#         self.socket.set_hwm(self.hwm)
+#         self.socket.connect("tcp://{}:{}".format(self.host, self.port))
 
 
-    def _recv_arrays(self):
-        """Receive a list of NumPy arrays.
-        Parameters
-        ----------
-        socket : :class:`zmq.Socket`
-        The socket to receive the arrays on.
-        Returns
-        -------
-        list
-        A list of :class:`numpy.ndarray` objects.
-        Raises
-        ------
-        StopIteration
-        If the first JSON object received contains the key `stop`,
-        signifying that the server has finished a single epoch.
-        """
+#     def _recv_arrays(self):
+#         """Receive a list of NumPy arrays.
+#         Parameters
+#         ----------
+#         socket : :class:`zmq.Socket`
+#         The socket to receive the arrays on.
+#         Returns
+#         -------
+#         list
+#         A list of :class:`numpy.ndarray` objects.
+#         Raises
+#         ------
+#         StopIteration
+#         If the first JSON object received contains the key `stop`,
+#         signifying that the server has finished a single epoch.
+#         """
 
-        if self.limit is not None and self.records > self.limit:
-            raise StopIteration
+#         if self.limit is not None and self.records > self.limit:
+#             raise StopIteration
 
-        headers = self.socket.recv_json()
-        if 'stop' in headers:
-            raise StopIteration
-        arrays = []
+#         headers = self.socket.recv_json()
+#         if 'stop' in headers:
+#             raise StopIteration
+#         arrays = []
 
-        for header in headers:
-            data = self.socket.recv()
-            buf = buffer_(data)
-            array = np.frombuffer(buf, dtype=np.dtype(header['descr']))
-            array.shape = make_tuple(header['shape']) if isinstance(header['shape'], str) else header['shape']
-            # this need for comparability with C++ code, for some reasons it is string here, not tuple
+#         for header in headers:
+#             data = self.socket.recv()
+#             buf = buffer_(data)
+#             array = np.frombuffer(buf, dtype=np.dtype(header['descr']))
+#             array.shape = make_tuple(header['shape']) if isinstance(header['shape'], str) else header['shape']
+#             # this need for comparability with C++ code, for some reasons it is string here, not tuple
 
-            if header['fortran_order']:
-                array.shape = header['shape'][::-1]
-                array = array.transpose()
-            arrays.append(array)
+#             if header['fortran_order']:
+#                 array.shape = header['shape'][::-1]
+#                 array = array.transpose()
+#             arrays.append(array)
 
-        self.records += 1
-        return arrays
+#         self.records += 1
+#         return arrays
 
 
 class DataIterator(DataIteratorBase):
@@ -209,6 +215,7 @@ class DataIterator(DataIteratorBase):
             tpl = next(self.generator, None)
             if tpl is not None:
                 self.records += 1
+                # print("self.records and tpl len", self.records, len(tpl))  #self.records and tpl len 50 4
                 return tpl
 
             if self.limit is None or self.records < self.limit:

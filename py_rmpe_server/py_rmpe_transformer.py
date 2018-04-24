@@ -23,7 +23,7 @@ class AugmentSelection:
             if random.uniform(0.,1.) > TransformationParams.scale_prob else 1. # TODO: see 'scale improbability' TODO above
         x_offset = int(random.uniform(-1.,1.) * TransformationParams.center_perterb_max);
         y_offset = int(random.uniform(-1.,1.) * TransformationParams.center_perterb_max);
-
+        print("scale in random() = ", scale)  # currently it's always 1 => no scaling
         return AugmentSelection(flip, degree, (x_offset,y_offset), scale)
 
     @staticmethod
