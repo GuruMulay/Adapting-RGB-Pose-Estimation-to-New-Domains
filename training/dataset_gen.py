@@ -3,6 +3,9 @@ import os
 import random
 import matplotlib.pyplot as plt
 import skimage.io
+
+# from py_eggnog_server.py_eggnog_transformer import Transformer, AugmentSelection
+
 """
 https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly.html
 """
@@ -11,7 +14,8 @@ class DataGenerator(object):
     'Generates data for Keras'
     def __init__(self, data_path, height = 240, width = 320, n_channels = 3, batch_size = 5, shuffle = True,
                  paf_height = 30, paf_width = 40, paf_n_channels = 36,
-                 hm_height = 30, hm_width = 40, hm_n_channels = 20):
+                 hm_height = 30, hm_width = 40, hm_n_channels = 20,
+                 shuffle=True, augment=True):
         
         'Initialization'
         self.data_path = data_path
@@ -29,6 +33,10 @@ class DataGenerator(object):
         self.hm_height = hm_height
         self.hm_width = hm_width
         self.hm_n_channels = hm_n_channels
+        
+        self.shuffle = shuffle
+        self.augment = augment
+        
         
     def generate(self, file_IDs, n_stages):
         'Generates batches of samples'
@@ -60,7 +68,20 @@ class DataGenerator(object):
 #                             y1, y2]
                 
                 yield [X], [y1, y2] * n_stages
+        
+        
+    def transform_data(self, img, label_hm, label_paf):
 
+        aug = AugmentSelection.random() if self.augment else AugmentSelection.unrandom()
+        print("transform data: before transform", img.shape, label_hm.shape, label_paf.shape)  
+        # transform data: before transform 
+        # transform data: after transform 
+        img, label_hm, label_paf = Transformer.transform(img, label_hm, label_paf, aug=aug)
+        print("transform data: after transform", img.shape, label_hm.shape, label_paf.shape)
+
+        return img, label_hm, label_paf
+
+    
     def __get_exploration_order(self, file_IDs):
         'Generates order of exploration'
         # Find exploration order
@@ -70,6 +91,7 @@ class DataGenerator(object):
 
         return indexes
 
+    
     def __data_generation(self, file_IDs_temp):
         'Generates data of batch_size samples' 
         # X: (n_samples == batch_size, height (240), width (320), n_channels (3) (rgb or bgr))
@@ -103,5 +125,12 @@ class DataGenerator(object):
             # verify dimensions of input image with parameters
             # append images to X
             # append labels to y1 and y2
-
+            
+            
+            # load the keypoints as well
+            kp = np.load(os.path.join(self.data_path, ID + '.npy'))
+            print("kp shape", kp.shape)
+            # transform the laoded images and corresponding labels with the same transformation
+#             X, y1, y2 = self.transfrom_data(X, y1, y2)
+            
         return X, y1, y2

@@ -6,7 +6,7 @@ import math
 sys.path.append("..")
 
 from model import get_training_model_eggnog
-from ds_generators import DataGeneratorClient, DataIterator
+# from ds_generators import DataGeneratorClient, DataIterator
 from dataset_gen import DataGenerator  #g
 from optimizers import MultiSGD
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint, CSVLogger, TensorBoard, TerminateOnNaN
@@ -107,7 +107,7 @@ stepsize = 1000000*17 # in original code each epoch is 121746 and step change is
 max_iter = 400
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
+os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
 
 BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/from_scratch/0330180415pm/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -376,8 +376,8 @@ print("partition dict train and val len", len(partition_dict['train']), len(part
 # as key + '_heatmap240.npy' and key + '_paf240.npy'
 
 # # Generators
-training_generator = DataGenerator(**params).generate(partition_dict['train'], n_stages)
-validation_generator = DataGenerator(**params).generate(partition_dict['val'], n_stages)
+training_generator = DataGenerator(**params).generate(partition_dict['train'], n_stages, shuffle=True, augment=True)
+validation_generator = DataGenerator(**params).generate(partition_dict['val'], n_stages, shuffle=False, augment=False)
 
 
 # train_di = train_client.generate()  # original

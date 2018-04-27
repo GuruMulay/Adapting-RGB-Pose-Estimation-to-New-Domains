@@ -1,20 +1,20 @@
-#!/usr/bin/env python
-
 import numpy as np
 from math import cos, sin, pi
 import cv2
 import random
 
-from py_rmpe_server.py_rmpe_config import RmpeGlobalConfig, TransformationParams
+from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, TransformationParams
+
 
 class AugmentSelection:
 
-    def __init__(self, flip=False, degree = 0., crop = (0,0), scale = 1.):
+    def __init__(self, flip=False, degree = 0.0, crop = (0,0), scale = 1.0):
         self.flip = flip
-        self.degree = degree #rotate
-        self.crop = crop #shift actually
+        self.degree = degree  #rotate
+        self.crop = crop  #shift actually
         self.scale = scale
 
+        
     @staticmethod
     def random():
         flip = random.uniform(0.,1.) > TransformationParams.flip_prob
@@ -23,9 +23,10 @@ class AugmentSelection:
             if random.uniform(0.,1.) > TransformationParams.scale_prob else 1. # TODO: see 'scale improbability' TODO above
         x_offset = int(random.uniform(-1.,1.) * TransformationParams.center_perterb_max);
         y_offset = int(random.uniform(-1.,1.) * TransformationParams.center_perterb_max);
-#         print("scale in random() = ", scale)  # currently it's always 1 => no scaling
+        print("scale in random() = ", scale)  # currently it's always 1 => no scaling
         return AugmentSelection(flip, degree, (x_offset,y_offset), scale)
 
+    
     @staticmethod
     def unrandom():
         flip = False
@@ -36,6 +37,7 @@ class AugmentSelection:
 
         return AugmentSelection(flip, degree, (x_offset,y_offset), scale)
 
+    
     def affine(self, center, scale_self):
 
         # the main idea: we will do all image transformations with one affine matrix.
@@ -68,8 +70,8 @@ class AugmentSelection:
                           [ 0., 1., 0. ],
                           [ 0., 0., 1. ]] )
 
-        center2center = np.array( [[ 1., 0., RmpeGlobalConfig.width//2],
-                                   [ 0., 1., RmpeGlobalConfig.height//2 ],
+        center2center = np.array( [[ 1., 0., EggnogGlobalConfig.width//2],
+                                   [ 0., 1., EggnogGlobalConfig.height//2 ],
                                    [ 0., 0., 1. ]] )
 
         # order of combination is reversed
@@ -77,22 +79,20 @@ class AugmentSelection:
 
         return combined[0:2]
 
+    
 class Transformer:
 
     @staticmethod
-    def transform(img, mask, meta, aug=AugmentSelection.random()):
+    def transform(img, label_hm, label_paf, aug=AugmentSelection.random()):
 
         # warp picture and mask
-        print("Before calculating the affine mat M: center, scale_self")
-        print("meta['objpos'][0], meta['scale_provided'][0]", meta['objpos'][0], meta['scale_provided'][0])  # [184.67000000000002, 136.065] 0.29763586956521737
-
         M = aug.affine(meta['objpos'][0], meta['scale_provided'][0])
 
         # TODO: need to understand this, scale_provided[0] is height of main person divided by 368, caclulated in generate_hdf5.py
         # print(img.shape)
-        img = cv2.warpAffine(img, M, (RmpeGlobalConfig.height, RmpeGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
-        mask = cv2.warpAffine(mask, M, (RmpeGlobalConfig.height, RmpeGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=255)
-        mask = cv2.resize(mask, RmpeGlobalConfig.mask_shape, interpolation=cv2.INTER_CUBIC)  # TODO: should be combined with warp for speed
+        img = cv2.warpAffine(img, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
+        mask = cv2.warpAffine(mask, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=255)
+        mask = cv2.resize(mask, EggnogGlobalConfig.mask_shape, interpolation=cv2.INTER_CUBIC)  # TODO: should be combined with warp for speed
         #_, mask = cv2.threshold(mask, 128, 255, cv2.THRESH_BINARY)
         #assert np.all((mask == 0) | (mask == 255)), "Interpolation of mask should be thresholded only 0 or 255\n" + str(mask)
         mask = mask.astype(np.float) / 255.
@@ -108,11 +108,11 @@ class Transformer:
         # we just made image flip, i.e. right leg just became left leg, and vice versa
 
         if aug.flip:
-            tmpLeft = meta['joints'][:, RmpeGlobalConfig.leftParts, :]
-            tmpRight = meta['joints'][:, RmpeGlobalConfig.rightParts, :]
-            meta['joints'][:, RmpeGlobalConfig.leftParts, :] = tmpRight
-            meta['joints'][:, RmpeGlobalConfig.rightParts, :] = tmpLeft
+            tmpLeft = meta['joints'][:, EggnogGlobalConfig.leftParts, :]
+            tmpRight = meta['joints'][:, EggnogGlobalConfig.rightParts, :]
+            meta['joints'][:, EggnogGlobalConfig.leftParts, :] = tmpRight
+            meta['joints'][:, EggnogGlobalConfig.rightParts, :] = tmpLeft
 
 
-        return img, mask, meta
+        return img, label_hm, label_paf
 
