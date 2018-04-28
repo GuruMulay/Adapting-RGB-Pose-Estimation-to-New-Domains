@@ -83,36 +83,36 @@ class AugmentSelection:
 class Transformer:
 
     @staticmethod
-    def transform(img, label_hm, label_paf, aug=AugmentSelection.random()):
+    def transform(img, label_hm, label_paf, kp, aug=AugmentSelection.random()):
+        print("in class transform", img.shape, label_hm.shape, label_paf.shape, kp.shape)
+#         # warp picture and mask
+#         M = aug.affine(meta['objpos'][0], meta['scale_provided'][0])
 
-        # warp picture and mask
-        M = aug.affine(meta['objpos'][0], meta['scale_provided'][0])
+#         # TODO: need to understand this, scale_provided[0] is height of main person divided by 368, caclulated in generate_hdf5.py
+#         # print(img.shape)
+#         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
+#         mask = cv2.warpAffine(mask, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=255)
+#         mask = cv2.resize(mask, EggnogGlobalConfig.mask_shape, interpolation=cv2.INTER_CUBIC)  # TODO: should be combined with warp for speed
+#         #_, mask = cv2.threshold(mask, 128, 255, cv2.THRESH_BINARY)
+#         #assert np.all((mask == 0) | (mask == 255)), "Interpolation of mask should be thresholded only 0 or 255\n" + str(mask)
+#         mask = mask.astype(np.float) / 255.
 
-        # TODO: need to understand this, scale_provided[0] is height of main person divided by 368, caclulated in generate_hdf5.py
-        # print(img.shape)
-        img = cv2.warpAffine(img, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
-        mask = cv2.warpAffine(mask, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=255)
-        mask = cv2.resize(mask, EggnogGlobalConfig.mask_shape, interpolation=cv2.INTER_CUBIC)  # TODO: should be combined with warp for speed
-        #_, mask = cv2.threshold(mask, 128, 255, cv2.THRESH_BINARY)
-        #assert np.all((mask == 0) | (mask == 255)), "Interpolation of mask should be thresholded only 0 or 255\n" + str(mask)
-        mask = mask.astype(np.float) / 255.
+#         # warp key points
+#         #TODO: joint could be cropped by augmentation, in this case we should mark it as invisible.
+#         #update: may be we don't need it actually, original code removed part sliced more than half totally, may be we should keep it
+#         original_points = meta['joints'].copy()
+#         original_points[:,:,2]=1  # we reuse 3rd column in completely different way here, it is hack
+#         converted_points = np.matmul(M, original_points.transpose([0,2,1])).transpose([0,2,1])
+#         meta['joints'][:,:,0:2]=converted_points
 
-        # warp key points
-        #TODO: joint could be cropped by augmentation, in this case we should mark it as invisible.
-        #update: may be we don't need it actually, original code removed part sliced more than half totally, may be we should keep it
-        original_points = meta['joints'].copy()
-        original_points[:,:,2]=1  # we reuse 3rd column in completely different way here, it is hack
-        converted_points = np.matmul(M, original_points.transpose([0,2,1])).transpose([0,2,1])
-        meta['joints'][:,:,0:2]=converted_points
+#         # we just made image flip, i.e. right leg just became left leg, and vice versa
 
-        # we just made image flip, i.e. right leg just became left leg, and vice versa
-
-        if aug.flip:
-            tmpLeft = meta['joints'][:, EggnogGlobalConfig.leftParts, :]
-            tmpRight = meta['joints'][:, EggnogGlobalConfig.rightParts, :]
-            meta['joints'][:, EggnogGlobalConfig.leftParts, :] = tmpRight
-            meta['joints'][:, EggnogGlobalConfig.rightParts, :] = tmpLeft
-
-
-        return img, label_hm, label_paf
+#         if aug.flip:
+#             tmpLeft = meta['joints'][:, EggnogGlobalConfig.leftParts, :]
+#             tmpRight = meta['joints'][:, EggnogGlobalConfig.rightParts, :]
+#             meta['joints'][:, EggnogGlobalConfig.leftParts, :] = tmpRight
+#             meta['joints'][:, EggnogGlobalConfig.rightParts, :] = tmpLeft
+        
+        print("returning transformed data and labels...")
+        return img, label_hm, label_paf, kp
 
