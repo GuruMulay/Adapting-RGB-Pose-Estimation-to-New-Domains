@@ -10,12 +10,12 @@ import numpy as np
 
 # stages = 6 # removed for only 1 staged model testing on eggnog
 # # original cpm with COCO
-np_branch1 = 38
-np_branch2 = 19
+# np_branch1 = 38
+# np_branch2 = 19
 
 # # modified cpm with EGGNOG
-# np_branch1 = 36
-# np_branch2 = 20
+np_branch1 = 36
+np_branch2 = 20
 
 def relu(x): return Activation('relu')(x)
 

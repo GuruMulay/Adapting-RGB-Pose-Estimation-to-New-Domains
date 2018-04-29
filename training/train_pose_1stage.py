@@ -19,7 +19,7 @@ from glob import glob
 
 #g
 train_in_finetune_mode = False
-preload_vgg = False
+preload_vgg = True
 
 
 from keras import callbacks
@@ -103,13 +103,13 @@ momentum = 0.9
 weight_decay = 2e-5
 lr_policy = "step"
 gamma = 0.333
-stepsize = 1000000*17 # in original code each epoch is 121746 and step change is on 17th epoch
-max_iter = 400
+stepsize = 10000*17 # in original code each epoch is 121746 and step change is on 17th epoch
+max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/from_scratch/0330180415pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0429180400pm/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
 TRAINING_LOG = BASE_DIR + "training_eggnog.csv"

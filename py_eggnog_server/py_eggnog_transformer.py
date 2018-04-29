@@ -23,7 +23,7 @@ class AugmentSelection:
             if random.uniform(0.,1.) > TransformationParams.scale_prob else 1. # TODO: see 'scale improbability' TODO above
         x_offset = int(random.uniform(-1.,1.) * TransformationParams.center_perterb_max);
         y_offset = int(random.uniform(-1.,1.) * TransformationParams.center_perterb_max);
-        print("scale in random() = ", scale)  # currently it's always 1 => no scaling
+#         print("scale in random() = ", scale)  # currently it's always 1 => no scaling
         return AugmentSelection(flip, degree, (x_offset,y_offset), scale)
 
     
@@ -83,14 +83,42 @@ class AugmentSelection:
 class Transformer:
 
     @staticmethod
-    def transform(img, label_hm, label_paf, kp, aug=AugmentSelection.random()):
-        print("in class transform", img.shape, label_hm.shape, label_paf.shape, kp.shape)
+    def transform(img, label_paf, label_hm, kp, aug=AugmentSelection.random()):
+#         print("in class transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
+        
+    
 #         # warp picture and mask
 #         M = aug.affine(meta['objpos'][0], meta['scale_provided'][0])
 
 #         # TODO: need to understand this, scale_provided[0] is height of main person divided by 368, caclulated in generate_hdf5.py
 #         # print(img.shape)
-#         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
+        assert np.isnan(kp).any() == False  # check if all elements are not nan
+        kp_center_x = kp[0] + kp[2] + kp[28]   # sum of spineshoulder spinemid, and spinebase
+        kp_center_y = kp[1] + kp[3] + kp[29]   # sum of spineshoulder spinemid, and spinebase
+#         print("kp center x = kp[0], kp[2], kp[28]", kp[0], kp[2], kp[28])  # 992.4157 991.5563 991.6354
+#         print("kp center y = kp[1], kp[3], kp[29]", kp[1], kp[3], kp[29])  # 633.3717 490.9328 355.1452
+        
+        M = aug.affine([kp_center_x, kp_center_y], 0.7)  # normalized height of the person in image! (assumed, need to change) 
+
+        
+#         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))  # ValueError: could not broadcast input array from shape (320,240,3) into shape (240,320,3)
+    
+    
+#         print("img, M shapes", img.shape, M.shape)  # (240, 320, 3) (2, 3)
+        
+        img = cv2.warpAffine(img, M, (EggnogGlobalConfig.width, EggnogGlobalConfig.height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
+        
+        for i in range(EggnogGlobalConfig.n_hm):
+            label_hm[:, :, i] = cv2.warpAffine(label_hm[:, :, i], M, (EggnogGlobalConfig.width//EggnogGlobalConfig.stride, EggnogGlobalConfig.height//EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+            ##### !!!!! NEED to figure out the DEFAULT for pixels after transform value which is zero if no joint is present
+        
+        for i in range(EggnogGlobalConfig.n_paf):
+            label_paf[:, :, i] = cv2.warpAffine(label_paf[:, :, i], M, (EggnogGlobalConfig.width//EggnogGlobalConfig.stride, EggnogGlobalConfig.height//EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+            ##### !!!!! NEED to figure out the DEFAULT for pixels after transform value which is zero if no joint is present
+
+
+
+
 #         mask = cv2.warpAffine(mask, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=255)
 #         mask = cv2.resize(mask, EggnogGlobalConfig.mask_shape, interpolation=cv2.INTER_CUBIC)  # TODO: should be combined with warp for speed
 #         #_, mask = cv2.threshold(mask, 128, 255, cv2.THRESH_BINARY)
@@ -113,6 +141,6 @@ class Transformer:
 #             meta['joints'][:, EggnogGlobalConfig.leftParts, :] = tmpRight
 #             meta['joints'][:, EggnogGlobalConfig.rightParts, :] = tmpLeft
         
-        print("returning transformed data and labels...")
-        return img, label_hm, label_paf, kp
+#         print("returning transformed data and labels...")
+        return img, label_paf, label_hm, kp
 

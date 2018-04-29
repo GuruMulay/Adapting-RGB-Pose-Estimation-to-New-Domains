@@ -49,7 +49,7 @@ class DataGenerator(object):
                 file_IDs_temp = [file_IDs[k] for k in indexes[i*self.batch_size:(i+1)*self.batch_size]]
                 
                 # Generate data
-                X, y1, y2 = self.__data_generation(file_IDs_temp, augment)
+                X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment)
                 
                 """
                 returns [x] = (batch_size, height (240), width (320), 3)
@@ -66,16 +66,16 @@ class DataGenerator(object):
                 yield [X], [y1, y2] * n_stages
         
         
-    def transform_data(self, img, label_hm, label_paf, kp, augment):
+    def transform_data(self, img, label_paf, label_hm, kp, augment):
 
         aug = AugmentSelection.random() if augment else AugmentSelection.unrandom()
-        print("transform data: before transform", img.shape, label_hm.shape, label_paf.shape, kp.shape)  
-        # transform data: before transform 
-        # transform data: after transform 
-        img, label_hm, label_paf, kp = Transformer.transform(img, label_hm, label_paf, kp, aug=aug)
-        print("transform data: after transform", img.shape, label_hm.shape, label_paf.shape, kp.shape)
+#         print("transform data: before transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)  
+        # transform data: before transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
+        # transform data: after transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
+        img, label_paf, label_hm, kp = Transformer.transform(img, label_paf, label_hm, kp, aug=aug)
+#         print("transform data: after transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
 
-        return img, label_hm, label_paf, kp
+        return img, label_paf, label_hm, kp
 
     
     def __get_exploration_order(self, file_IDs, shuffle):
@@ -112,24 +112,40 @@ class DataGenerator(object):
 #             y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30_40.npy'))
             
             # original dataset
-            # Store volume
-            X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))
-            # print("img shape (h, w, c)", img.shape)  # height, width, channels (rgb)
-            # Store ground truths
-            y1[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'))
-            y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'))
+#             # v1
+#             X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))
+#             # print("img shape (h, w, c)", img.shape)  # height, width, channels (rgb)
+#             # Store ground truths
+#             y1[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'))
+#             y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'))
             
-            # option 2
-            # verify dimensions of input image with parameters
-            # append images to X
-            # append labels to y1 and y2
+#             # option 2
+#             # verify dimensions of input image with parameters
+#             # append images to X
+#             # append labels to y1 and y2
             
             
-            # load the keypoints as well
-            kp[i, :] = np.load(os.path.join(self.data_path, ID + '.npy'))  
-            print("kp shape", kp.shape)  # kp shape (38,) 19 joints and x, y
+#             # load the keypoints as well
+#             kp[i, :] = np.load(os.path.join(self.data_path, ID + '.npy'))
+#             print("kp shape", kp.shape)  # kp shape (38,) 19 joints and x, y
             
-            # transform the laoded images and corresponding labels with the same transformation
-            X, y1, y2, kp = self.transform_data(X, y1, y2, kp, augment)
+#             # transform the laoded images and corresponding labels with the same transformation
+#             X, y1, y2, kp = self.transform_data(X, y1, y2, kp, augment)
             
-        return X, y1, y2
+            # v2
+            X[i, :, :, :], y1[i, :, :, :], y2[i, :, :, :], kp[i, :] = self.transform_data(
+                                                    skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg')),
+                                                    np.load(os.path.join(self.data_path, ID + '_paf30x40.npy')),
+                                                    np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy')),
+                                                    np.load(os.path.join(self.data_path, ID + '.npy')),
+                                                    augment
+                                                    )  # loads individual images and npys, returns their transformed versions without changing shapes
+            
+            # print("sum of x[4, :, :, :]", i, np.sum(X[4, :, :, :]), np.sum(y1[4, :, :, :]), np.sum(y1[4, :, :, :]), np.sum(kp[4, :]))  # untimeWarning: overflow encountered in reduce  # also somehow kp is not summing to zero!
+#             transform data: before transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
+#             in class transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
+#             returning transformed data and labels...
+#             transform data: after transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
+
+            
+        return X, y1, y2, kp

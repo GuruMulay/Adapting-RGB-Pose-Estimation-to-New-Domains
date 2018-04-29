@@ -14,6 +14,8 @@ class EggnogGlobalConfig:
 
     stride = 8
     
+    n_paf = 36
+    n_hm = 20
 
     parts = ["nose", "neck", "Rsho", "Relb", "Rwri", "Lsho", "Lelb", "Lwri", "Rhip", "Rkne", "Rank", "Lhip", "Lkne", "Lank", "Reye", "Leye", "Rear", "Lear"]
     num_parts = len(parts)
