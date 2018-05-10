@@ -13,6 +13,8 @@ class EggnogGlobalConfig:
     height = 240
 
     stride = 8
+    kp_x_offset_half = 240 # remember we cropped 240 pixels from left and right side of the image
+    kp_to_img_stride = 4.5  # factor by which kp should be scaled DOWN to make them valid in img space of width and height = (width height)
     
     n_paf = 36
     n_hm = 20
@@ -47,8 +49,8 @@ class EggnogGlobalConfig:
 class TransformationParams:
 
     target_dist = 0.6;
-    scale_prob = 1;   # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
-    scale_min = 0.5;
+    scale_prob = 0.5;   # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
+    scale_min = 0.9;  #  originally 0.5
     scale_max = 1.1;
     max_rotate_degree = 40.
     center_perterb_max = 40.  # x and y

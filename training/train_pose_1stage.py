@@ -55,7 +55,7 @@ split_sessionwise = False  # split train and val sessionwise, 70% session for tr
 
 # videowise split
 if split_videowise:
-    train_val_sessions = ['s04', 's05']
+    train_val_sessions = ['s04']
 #     train_val_sessions = ['s04', 's05', 's07']
     div_factor_train_val = 5
     print("train_val_sessions", train_val_sessions)
@@ -107,9 +107,9 @@ stepsize = 10000*17 # in original code each epoch is 121746 and step change is o
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
+os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0429180400pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0509180300pm/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
 TRAINING_LOG = BASE_DIR + "training_eggnog.csv"
@@ -247,7 +247,9 @@ params = {'data_path': eggnog_dataset_path,
           'paf_n_channels': 36,
           'hm_height': 30,
           'hm_width': 40,
-          'hm_n_channels': 20}
+          'hm_n_channels': 20,
+          'save_transformed_path': None 
+         }
 
 
 # old version for toy dataset where all the images were in the same folder

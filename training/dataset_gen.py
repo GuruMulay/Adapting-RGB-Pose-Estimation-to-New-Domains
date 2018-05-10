@@ -14,7 +14,8 @@ class DataGenerator(object):
     'Generates data for Keras'
     def __init__(self, data_path, height = 240, width = 320, n_channels = 3, batch_size = 5,
                  paf_height = 30, paf_width = 40, paf_n_channels = 36,
-                 hm_height = 30, hm_width = 40, hm_n_channels = 20):
+                 hm_height = 30, hm_width = 40, hm_n_channels = 20, 
+                 save_transformed_path = None):
         
         'Initialization'
         self.data_path = data_path
@@ -33,9 +34,32 @@ class DataGenerator(object):
         self.hm_width = hm_width
         self.hm_n_channels = hm_n_channels
         
+        self.save_transformed_path = save_transformed_path  # used to save the transformed images in this path if it is not null
+#         print("===== self.save_transformed_path", self.save_transformed_path)
+        if self.save_transformed_path:
+            os.makedirs(self.save_transformed_path, exist_ok=True)
+    
+    
+    def generate_and_save(self, file_IDs, n_stages, shuffle=True, augment=True):
+        'Generates batches of samples and save transfomrd version to a folder'
+        print("in gen")
+        indexes = self.__get_exploration_order(file_IDs, shuffle)
+            
+        # Generate batches
+        imax = int(len(indexes)/self.batch_size)  # len(indexes) == len(file_IDs)  # e.g., imax = 608/32 = 19
         
+        # for this epoch go through 608 images with 19 steps (imax) of 32 batch_size
+        for i in range(imax):
+            # Find list of IDs
+            file_IDs_temp = [file_IDs[k] for k in indexes[i*self.batch_size:(i+1)*self.batch_size]]
+                
+            # Generate data
+            X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment)
+        
+    
     def generate(self, file_IDs, n_stages, shuffle=True, augment=True):
         'Generates batches of samples'
+        # print("in gen")
         # Infinite loop
         while 1:
             # Generate order of exploration of dataset
@@ -62,7 +86,7 @@ class DataGenerator(object):
 #                             y1, y2,
 #                             y1, y2,
 #                             y1, y2]
-                
+                    
                 yield [X], [y1, y2] * n_stages
         
         
@@ -74,7 +98,7 @@ class DataGenerator(object):
         # transform data: after transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
         img, label_paf, label_hm, kp = Transformer.transform(img, label_paf, label_hm, kp, aug=aug)
 #         print("transform data: after transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
-
+#         print("aug =====", augment)
         return img, label_paf, label_hm, kp
 
     
@@ -94,7 +118,7 @@ class DataGenerator(object):
         
         # Initialization
         # zero init helps in verifying dimensions of input image? during assignment?
-        X = np.empty((self.batch_size, self.height, self.width, self.n_channels))
+        X = np.empty((self.batch_size, self.height, self.width, self.n_channels), dtype=np.uint8)
         y1 = np.empty((self.batch_size, self.paf_height, self.paf_width, self.paf_n_channels))
         y2 = np.empty((self.batch_size, self.hm_height, self.hm_width, self.hm_n_channels))
         kp = np.empty((self.batch_size, (self.hm_n_channels-1)*2))  # (batch x (20-1)*2)  # e.g., 5x38
@@ -103,6 +127,8 @@ class DataGenerator(object):
         
         # Generate data
         for i, ID in enumerate(file_IDs_temp):
+#             print(ID)  # s07_1video/part1_layout_p14/20151116_230338_00_Video/20151116_230338_00_Video_vfr_105_skfr_105
+
 #             # toy dataset
 #             # Store volume
 #             X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))
@@ -141,6 +167,14 @@ class DataGenerator(object):
                                                     augment
                                                     )  # loads individual images and npys, returns their transformed versions without changing shapes
             
+#             print("X[i, :, :, :], y1[i, :, :, :], y2[i, :, :, :],", X[i, :, :, :].shape, X[i, :, :, :].dtype, type(X[i, :, :, :]), y1[i, :, :, :].shape, y2[i, :, :, :].shape)
+#             print("X", X[i, :, :, :])
+            # save transformed # /s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/s07_1video_transformed_val/part1_layout_p14/20151116_230338_00_Video
+            
+            if self.save_transformed_path:
+#                 print("saving ", ID.split('/')[-1] + '_240x320_transformed.jpg')
+                skimage.io.imsave(self.save_transformed_path + "/" + ID.split('/')[-1] + '_240x320_transformed.jpg', X[i, :, :, :])
+                    
             # print("sum of x[4, :, :, :]", i, np.sum(X[4, :, :, :]), np.sum(y1[4, :, :, :]), np.sum(y1[4, :, :, :]), np.sum(kp[4, :]))  # untimeWarning: overflow encountered in reduce  # also somehow kp is not summing to zero!
 #             transform data: before transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
 #             in class transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)

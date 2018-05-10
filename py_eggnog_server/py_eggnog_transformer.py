@@ -14,7 +14,7 @@ class AugmentSelection:
         self.crop = crop  #shift actually
         self.scale = scale
 
-        
+       
     @staticmethod
     def random():
         flip = random.uniform(0.,1.) > TransformationParams.flip_prob
@@ -24,6 +24,7 @@ class AugmentSelection:
         x_offset = int(random.uniform(-1.,1.) * TransformationParams.center_perterb_max);
         y_offset = int(random.uniform(-1.,1.) * TransformationParams.center_perterb_max);
 #         print("scale in random() = ", scale)  # currently it's always 1 => no scaling
+#         print("random aug params ====", flip, degree, (x_offset,y_offset), scale)
         return AugmentSelection(flip, degree, (x_offset,y_offset), scale)
 
     
@@ -85,26 +86,28 @@ class Transformer:
     @staticmethod
     def transform(img, label_paf, label_hm, kp, aug=AugmentSelection.random()):
 #         print("in class transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
-        
+#         print("img before", img[200][200][:])
     
 #         # warp picture and mask
 #         M = aug.affine(meta['objpos'][0], meta['scale_provided'][0])
 
 #         # TODO: need to understand this, scale_provided[0] is height of main person divided by 368, caclulated in generate_hdf5.py
-#         # print(img.shape)
+#         print(img.shape, type(img), img.dtype, img.shape)
         assert np.isnan(kp).any() == False  # check if all elements are not nan
-        kp_center_x = kp[0] + kp[2] + kp[28]   # sum of spineshoulder spinemid, and spinebase
-        kp_center_y = kp[1] + kp[3] + kp[29]   # sum of spineshoulder spinemid, and spinebase
+        kp_center_x = (kp[0] + kp[2] + kp[28])/3   # sum of spineshoulder, spinemid, and spinebase
+        kp_center_y = (kp[1] + kp[3] + kp[29])/3   # sum of spineshoulder, spinemid, and spinebase
 #         print("kp center x = kp[0], kp[2], kp[28]", kp[0], kp[2], kp[28])  # 992.4157 991.5563 991.6354
 #         print("kp center y = kp[1], kp[3], kp[29]", kp[1], kp[3], kp[29])  # 633.3717 490.9328 355.1452
         
-        M = aug.affine([kp_center_x, kp_center_y], 0.7)  # normalized height of the person in image! (assumed, need to change) 
+        M = aug.affine([(kp_center_x-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride, kp_center_y/EggnogGlobalConfig.kp_to_img_stride], 0.7)  # normalized height of the person in image! (assumed, need to change)
+#         print("kp based center = ", (kp_center_x-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride, kp_center_y/EggnogGlobalConfig.kp_to_img_stride)
+#         M = aug.affine([160, 120], 0.65)  # normalized height of the person in image! (assumed, need to change) 
 
         
 #         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))  # ValueError: could not broadcast input array from shape (320,240,3) into shape (240,320,3)
     
     
-#         print("img, M shapes", img.shape, M.shape)  # (240, 320, 3) (2, 3)
+#         print("img, M shapes", img.shape, M, M.shape)  # (240, 320, 3) (2, 3)
         
         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.width, EggnogGlobalConfig.height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
         
@@ -142,5 +145,8 @@ class Transformer:
 #             meta['joints'][:, EggnogGlobalConfig.rightParts, :] = tmpLeft
         
 #         print("returning transformed data and labels...")
+
+#         print("img after", img[100][100][1])
+#         print("img all grey???", (img==127).all())  # all are 127 pixels
         return img, label_paf, label_hm, kp
 
