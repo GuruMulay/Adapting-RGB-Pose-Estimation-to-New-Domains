@@ -174,6 +174,8 @@ class DataGenerator(object):
             if self.save_transformed_path:
 #                 print("saving ", ID.split('/')[-1] + '_240x320_transformed.jpg')
                 skimage.io.imsave(self.save_transformed_path + "/" + ID.split('/')[-1] + '_240x320_transformed.jpg', X[i, :, :, :])
+                np.save(self.save_transformed_path + "/" + ID.split('/')[-1] + '_paf30x40_transformed.npy', y1[i, :, :, :])
+                np.save(self.save_transformed_path + "/" + ID.split('/')[-1] + '_heatmap30x40_transformed.npy', y2[i, :, :, :])
                     
             # print("sum of x[4, :, :, :]", i, np.sum(X[4, :, :, :]), np.sum(y1[4, :, :, :]), np.sum(y1[4, :, :, :]), np.sum(kp[4, :]))  # untimeWarning: overflow encountered in reduce  # also somehow kp is not summing to zero!
 #             transform data: before transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
