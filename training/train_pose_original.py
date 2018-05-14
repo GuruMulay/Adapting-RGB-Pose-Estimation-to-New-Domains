@@ -37,7 +37,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
 n_stages = 1
 
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/0420180230pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/0510180230pm/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 print("base dir ========================", BASE_DIR)
 WEIGHTS_SAVE = 'weights.{epoch:04d}.h5'

@@ -93,6 +93,8 @@ class Transformer:
 
 #         # TODO: need to understand this, scale_provided[0] is height of main person divided by 368, caclulated in generate_hdf5.py
 #         print(img.shape, type(img), img.dtype, img.shape)
+
+
         assert np.isnan(kp).any() == False  # check if all elements are not nan
         kp_center_x = (kp[0] + kp[2] + kp[28])/3   # sum of spineshoulder, spinemid, and spinebase
         kp_center_y = (kp[1] + kp[3] + kp[29])/3   # sum of spineshoulder, spinemid, and spinebase
@@ -111,6 +113,7 @@ class Transformer:
         
         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.width, EggnogGlobalConfig.height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
         
+        # this is incorrect because the M calculated for image cannot be use to transform the ground thruth maps.M was calculated on 240x320 image, but ground truth is 30x40 image. 
         for i in range(EggnogGlobalConfig.n_hm):
             label_hm[:, :, i] = cv2.warpAffine(label_hm[:, :, i], M, (EggnogGlobalConfig.width//EggnogGlobalConfig.stride, EggnogGlobalConfig.height//EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
             ##### !!!!! NEED to figure out the DEFAULT for pixels after transform value which is zero if no joint is present
@@ -127,6 +130,7 @@ class Transformer:
 #         #_, mask = cv2.threshold(mask, 128, 255, cv2.THRESH_BINARY)
 #         #assert np.all((mask == 0) | (mask == 255)), "Interpolation of mask should be thresholded only 0 or 255\n" + str(mask)
 #         mask = mask.astype(np.float) / 255.
+
 
 #         # warp key points
 #         #TODO: joint could be cropped by augmentation, in this case we should mark it as invisible.

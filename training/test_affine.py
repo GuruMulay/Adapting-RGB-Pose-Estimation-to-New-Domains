@@ -5,25 +5,25 @@ import sys
 import os
 sys.path.append("..")
 import numpy as np
+from math import cos, sin, pi
 
 import cv2
 import skimage.io
 from matplotlib import pyplot as plt
 
-width = 320
-height = 240
+img_width = 320
+img_height = 240
     
 ID = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/s07_1video/part1_layout_p14/20151116_230338_00_Video/20151116_230338_00_Video_vfr_0_skfr_0_240x320.jpg"
 
 
 # aug parameters # write random paramneters
-degree = 30
-scale = 1
-crop = (0, 0)
-flip = False
+# degree = 0
+# scale = 1
+# crop = (0, 0)
+# flip = False
 
-scale_self = 1
-target_dist = 0.6
+# target_dist = 0.6
 
 
 def affine(center, scale_self):
@@ -32,9 +32,19 @@ def affine(center, scale_self):
         # this saves lot of cpu and make code significantly shorter
         # same affine matrix could be used to transform joint coordinates afterwards
 
+        degree = 0
+        scale = 1
+        crop = (0, 0)
+        flip = False
 
-        A = self.scale * cos(degree / 180. * pi )
-        B = self.scale * sin(degree / 180. * pi )
+        target_dist = 1
+        
+        img_width = 320
+        img_height = 240
+
+
+        A = scale * cos(degree / 180. * pi )
+        B = scale * sin(degree / 180. * pi )
 
         scale_size = target_dist / scale_self * scale
 
@@ -58,8 +68,8 @@ def affine(center, scale_self):
                           [ 0., 1., 0. ],
                           [ 0., 0., 1. ]] )
 
-        center2center = np.array( [[ 1., 0., EggnogGlobalConfig.width//2],
-                                   [ 0., 1., EggnogGlobalConfig.height//2 ],
+        center2center = np.array( [[ 1., 0., img_width//2],
+                                   [ 0., 1., img_height//2 ],
                                    [ 0., 0., 1. ]] )
 
         # order of combination is reversed
@@ -70,18 +80,24 @@ def affine(center, scale_self):
     
     
 # M = np.array([[ 8.57142857e-01,  0.00000000e+00, -2.60115543e+03], [ 0.00000000e+00,  8.57142857e-01, -9.97728171e+02]])
-M = affine()
+M = affine((img_width//2, img_height//2), 1)
 print("M", M.shape, M)
 
     
 img = skimage.io.imread(ID)
-print(img.shape, type(img), img.dtype, img.shape)
+print("img when read", img.shape, type(img), img.dtype, img.shape)
 skimage.io.imshow(img)
 plt.show()
 
-img_tx = cv2.warpAffine(img, M, (width, height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
-print(img_tx.shape)
+img_tx = cv2.warpAffine(img, M, (img_width-50, img_height-50), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
+print("img when transformed", img_tx.shape)
 skimage.io.imshow(img_tx)
 plt.show()
 # skimage.io.imsave(self.save_transformed_path + "/" + ID.split('/')[-1] + '_240x320_transformed.jpg', X[i, :, :, :])
 print("Testing affine is done!")
+
+
+# with no aug 
+# combined [[1. 0. 0.]
+#  [0. 1. 0.]
+#  [0. 0. 1.]]
