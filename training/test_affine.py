@@ -89,7 +89,7 @@ print("img when read", img.shape, type(img), img.dtype, img.shape)
 skimage.io.imshow(img)
 plt.show()
 
-img_tx = cv2.warpAffine(img, M, (img_width-50, img_height-50), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
+img_tx = cv2.warpAffine(img, M, (img_width-0, img_height-0), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
 print("img when transformed", img_tx.shape)
 skimage.io.imshow(img_tx)
 plt.show()

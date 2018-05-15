@@ -6,6 +6,22 @@ import random
 from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, TransformationParams
 
 
+def keypoint_transform_to_240x320_image(kp):
+    """
+    transforms kps (which are in 1080x1920 space) to 240x320 space. Note that this is noth the gound truth space 30x40.
+    """
+    
+    # print("before 240x320 tx", kp.shape, kp)
+    for k in range(len(kp)):
+        if k%2 == 0:  # x axis
+            kp[k] = (kp[k]-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride
+        else:  # y axis
+            kp[k] = kp[k]/EggnogGlobalConfig.kp_to_img_stride
+        
+    return kp
+    
+
+
 class AugmentSelection:
 
     def __init__(self, flip=False, degree = 0.0, crop = (0,0), scale = 1.0):
@@ -101,19 +117,26 @@ class Transformer:
 #         print("kp center x = kp[0], kp[2], kp[28]", kp[0], kp[2], kp[28])  # 992.4157 991.5563 991.6354
 #         print("kp center y = kp[1], kp[3], kp[29]", kp[1], kp[3], kp[29])  # 633.3717 490.9328 355.1452
         
-        M = aug.affine([(kp_center_x-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride, kp_center_y/EggnogGlobalConfig.kp_to_img_stride], 0.7)  # normalized height of the person in image! (assumed, need to change)
+        M = aug.affine([(kp_center_x-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride, kp_center_y/EggnogGlobalConfig.kp_to_img_stride], 1)  # normalized height of the person in image! (assumed, need to change)
 #         print("kp based center = ", (kp_center_x-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride, kp_center_y/EggnogGlobalConfig.kp_to_img_stride)
 #         M = aug.affine([160, 120], 0.65)  # normalized height of the person in image! (assumed, need to change) 
 
         
 #         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))  # ValueError: could not broadcast input array from shape (320,240,3) into shape (240,320,3)
-    
+        
+        # before transforming the keypoints by affine transform M, we need to bring them in the 240x320 image space from the original 1080x1920 space.
+        print("before 240x320 tx", kp.shape, kp)
+        kp = keypoint_transform_to_240x320_image(kp)
+        print("after 240x320 tx", kp.shape, kp)
+        
     
 #         print("img, M shapes", img.shape, M, M.shape)  # (240, 320, 3) (2, 3)
+# #         cv2.imshow("before transform", img)
+#         cv2.waitKey(0)
         
         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.width, EggnogGlobalConfig.height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
         
-        # this is incorrect because the M calculated for image cannot be use to transform the ground thruth maps.M was calculated on 240x320 image, but ground truth is 30x40 image. 
+        # this is incorrect because the M calculated for image cannot be use to transform the ground truth maps. M was calculated on 240x320 image, but ground truth is 30x40 image. 
         for i in range(EggnogGlobalConfig.n_hm):
             label_hm[:, :, i] = cv2.warpAffine(label_hm[:, :, i], M, (EggnogGlobalConfig.width//EggnogGlobalConfig.stride, EggnogGlobalConfig.height//EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
             ##### !!!!! NEED to figure out the DEFAULT for pixels after transform value which is zero if no joint is present
@@ -132,6 +155,7 @@ class Transformer:
 #         mask = mask.astype(np.float) / 255.
 
 
+
 #         # warp key points
 #         #TODO: joint could be cropped by augmentation, in this case we should mark it as invisible.
 #         #update: may be we don't need it actually, original code removed part sliced more than half totally, may be we should keep it
@@ -139,6 +163,8 @@ class Transformer:
 #         original_points[:,:,2]=1  # we reuse 3rd column in completely different way here, it is hack
 #         converted_points = np.matmul(M, original_points.transpose([0,2,1])).transpose([0,2,1])
 #         meta['joints'][:,:,0:2]=converted_points
+
+        
 
 #         # we just made image flip, i.e. right leg just became left leg, and vice versa
 

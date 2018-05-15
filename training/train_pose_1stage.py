@@ -109,7 +109,7 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0509180300pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0514180300pm/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
 TRAINING_LOG = BASE_DIR + "training_eggnog.csv"
