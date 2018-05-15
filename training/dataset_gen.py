@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import skimage.io
 
 from py_eggnog_server.py_eggnog_transformer import Transformer, AugmentSelection
+from py_eggnog_server.py_eggnog_heatmapper import Heatmapper
 
 """
 https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly.html
@@ -38,6 +39,9 @@ class DataGenerator(object):
 #         print("===== self.save_transformed_path", self.save_transformed_path)
         if self.save_transformed_path:
             os.makedirs(self.save_transformed_path, exist_ok=True)
+            
+        # change this later to direct class calling
+        self.heatmapper = Heatmapper()
     
     
     def generate_and_save(self, file_IDs, n_stages, shuffle=True, augment=True):
@@ -96,9 +100,12 @@ class DataGenerator(object):
 #         print("transform data: before transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)  
         # transform data: before transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
         # transform data: after transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
-        img, label_paf, label_hm, kp = Transformer.transform(img, label_paf, label_hm, kp, aug=aug)
+        img, kp = Transformer.transform(img, kp, aug=aug)
 #         print("transform data: after transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
 #         print("aug =====", augment)
+
+        label_paf, label_hm = self.heatmapper.get_pafs_and_hms_heatmaps(kp)
+        
         return img, label_paf, label_hm, kp
 
     

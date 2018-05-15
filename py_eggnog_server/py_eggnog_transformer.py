@@ -100,7 +100,7 @@ class AugmentSelection:
 class Transformer:
 
     @staticmethod
-    def transform(img, label_paf, label_hm, kp, aug=AugmentSelection.random()):
+    def transform(img, kp, aug=AugmentSelection.random()):
 #         print("in class transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
 #         print("img before", img[200][200][:])
     
@@ -129,21 +129,29 @@ class Transformer:
         kp = keypoint_transform_to_240x320_image(kp)
         print("after 240x320 tx", kp.shape, kp)
         
-    
+        # apply affine transform to kps
+        kp_original = np.append(kp.reshape((1, EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_axis)), 
+                               np.ones((1, EggnogGlobalConfig.n_kp, 1)),
+                               axis = 2)  # third column is made all 1s because we want to multiply by affine mat M
+        
+        kp_converted = np.matmul(M, kp_original.transpose([0,2,1])).transpose([0,2,1])
+        
+        
 #         print("img, M shapes", img.shape, M, M.shape)  # (240, 320, 3) (2, 3)
-# #         cv2.imshow("before transform", img)
+#         cv2.imshow("before transform", img)
 #         cv2.waitKey(0)
         
         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.width, EggnogGlobalConfig.height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
         
-        # this is incorrect because the M calculated for image cannot be use to transform the ground truth maps. M was calculated on 240x320 image, but ground truth is 30x40 image. 
-        for i in range(EggnogGlobalConfig.n_hm):
-            label_hm[:, :, i] = cv2.warpAffine(label_hm[:, :, i], M, (EggnogGlobalConfig.width//EggnogGlobalConfig.stride, EggnogGlobalConfig.height//EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-            ##### !!!!! NEED to figure out the DEFAULT for pixels after transform value which is zero if no joint is present
         
-        for i in range(EggnogGlobalConfig.n_paf):
-            label_paf[:, :, i] = cv2.warpAffine(label_paf[:, :, i], M, (EggnogGlobalConfig.width//EggnogGlobalConfig.stride, EggnogGlobalConfig.height//EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-            ##### !!!!! NEED to figure out the DEFAULT for pixels after transform value which is zero if no joint is present
+#         # this is incorrect because the M calculated for image cannot be use to transform the ground truth maps. M was calculated on 240x320 image, but ground truth is 30x40 image. 
+#         for i in range(EggnogGlobalConfig.n_hm):
+#             label_hm[:, :, i] = cv2.warpAffine(label_hm[:, :, i], M, (EggnogGlobalConfig.width//EggnogGlobalConfig.stride, EggnogGlobalConfig.height//EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+#             ##### !!!!! NEED to figure out the DEFAULT for pixels after transform value which is zero if no joint is present
+        
+#         for i in range(EggnogGlobalConfig.n_paf):
+#             label_paf[:, :, i] = cv2.warpAffine(label_paf[:, :, i], M, (EggnogGlobalConfig.width//EggnogGlobalConfig.stride, EggnogGlobalConfig.height//EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+#             ##### !!!!! NEED to figure out the DEFAULT for pixels after transform value which is zero if no joint is present
 
 
 
@@ -178,5 +186,5 @@ class Transformer:
 
 #         print("img after", img[100][100][1])
 #         print("img all grey???", (img==127).all())  # all are 127 pixels
-        return img, label_paf, label_hm, kp
+        return img, kp_converted.reshape((EggnogGlobalConfig.n_kp,))
 

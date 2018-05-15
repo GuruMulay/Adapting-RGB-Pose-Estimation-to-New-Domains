@@ -1,0 +1,267 @@
+#!/usr/bin/env python
+
+import numpy as np
+from math import sqrt, isnan
+
+from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, TransformationParams
+
+
+class Heatmapper:
+
+    def __init__(self, alpha=TransformationParams.alpha, limb_width=TransformationParams.limb_width):
+
+        self.alpha = alpha
+        self.limb_width = limb_width
+        
+        
+        # cached common parameters which same for all iterations and all pictures
+        gt_height = EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor
+        gt_width = EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor
+        
+        paf_pairs = EggnogGlobalConfig.paf_pairs_indices
+        
+#         stride = RmpeGlobalConfig.stride
+#         width = RmpeGlobalConfig.width//stride
+#         height = RmpeGlobalConfig.height//stride
+
+        
+    def get_heatmap(index_array, pxpy_list):
+        # index_array (240/8, 320/8, 2), pxpy_list [px, py]
+        kp_location_array = np.zeros(index_array.shape)
+        assert(index_array.shape[0] > 0 and index_array.shape[1] > 0)
+
+        if pxpy_list[0] is None:
+            heatmap = kp_location_array[:,:,0]
+        else:
+            kp_location_array[:, :, 0] = pxpy_list[1]
+            kp_location_array[:, :, 1] = pxpy_list[0]
+            heatmap = np.exp((self.alpha)*-np.sqrt(np.sum(np.square(index_array - kp_location_array), axis=2)))
+            heatmap /= np.max(heatmap)
+
+    #     if np.sum(heat_map)>0:
+    #         heat_map /= np.max(heat_map)
+
+        return heatmap
+
+    
+    def get_pafx_pafy(index_array, kp0xy, kp1xy):
+        """
+        kp0xy, kp1xy: lists [pixel_x, pixel_y] for kp0 and kp1
+        """
+        
+        assert(index_array.shape[0] > 0 and index_array.shape[1] > 0)
+
+        paf_array = np.zeros(index_array.shape)  # stores calculated pafs (values between -1 to 1)
+        p_vector_array = np.zeros(index_array.shape)  # slice 0 stores all y, slice 1 stores all x
+
+        # p_vector_array correpsonds to non-unit vector (p - x(j1, k)) from the paper # j1 is kp0
+        # swapped indexing (0, 1) because slice 0 of index array stores all y locations and slice 1 stores all x locations
+        p_vector_array[:,:,0] = index_array[:,:,0] - kp0xy[1]
+        p_vector_array[:,:,1] = index_array[:,:,1] - kp0xy[0]
+
+        # v_vector_array corresponds to v from the paper
+        vect = np.array((kp1xy[1] - kp0xy[1], kp1xy[0] - kp0xy[0])).reshape(1, -1)  # print("vect", vect)
+        v_unit_arr, limb_length_arr = normalize(vect, return_norm=True)  # y component at 0th index # x component at 1st index
+        v_unit = v_unit_arr[0]
+        limb_length = limb_length_arr[0]  # print("vect unit and limb length", v_unit, limb_length)
+        v_perpendicular = [v_unit[1], -v_unit[0]]  # print("v_perp", v_perpendicular)
+        #     v_vector_array[:,:,0] = v_unit[0]  # y component at 0th index
+        #     v_vector_array[:,:,1] = v_unit[1]  # x component at 1st index
+
+        # print("generating paf for the limb formed by", kp0xy, kp1xy)
+        # paf_array = index_array  # this caused gray gradient error
+
+        for r in range(paf_array.shape[0]):
+            for c in range(paf_array.shape[1]):
+                # print("r, c = ", r, c)
+                # check if p is "on the limb"
+                if (0 <= np.dot(v_unit, [p_vector_array[r,c,0], p_vector_array[r,c,1]]) <= limb_length) and (np.abs(np.dot(v_perpendicular, [p_vector_array[r,c,0], p_vector_array[r,c,1]])) <= self.limb_width):
+                    paf_array[r, c, 1] = v_unit[0] # y component of the expected vector is assigned to the 1st channel so that we append PAFs in x and then y order
+                    paf_array[r, c, 0] = v_unit[1] # x component of the expected vector is assigned to the 0th channel so that we append PAFs in x and then y order
+    #                 print("x, y", v_unit[1], v_unit[0])
+    #             else:
+    #                 print("should assign zero")
+        # return paf so that x slice is first (index 0) and the y slice is second (index 1)
+
+        return paf_array
+
+
+    def get_pafs_and_hms_heatmaps(sk_keypoints):
+        """
+        sk_keypoints: (38,) shaped keypoints with alternate x and y corrdinates for 19 joints
+        """
+        
+        # 3 from eggnog_preprocessing/preprocessing/read_videos_write_img_paf_hm.py
+        # print("sk_kp shape =", sk_keypoints.shape)  # (38, )
+        
+        # for 20 (actually 19 + background) heatmaps =====================================
+        for kpn in range(sk_keypoints.shape[0]//2):
+            kpx = sk_keypoints[2*kpn]
+            kpy = sk_keypoints[2*kpn+1]  # print(kpx, kpy)
+                
+            index_array = np.zeros((gt_height, gt_width, 2))
+            for i in range(index_array.shape[0]):
+                for j in range(index_array.shape[1]):
+                    index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+                
+            if kpn == 0:
+                heatmap = get_heatmap(index_array, kpx_kpy_transformer([kpx, kpy]))   # /4 because image is 1080 x 1920 and so are the original pixel locations of the keypoints 
+            else:
+                heatmap = np.dstack(( heatmap, get_heatmap(index_array, kpx_kpy_transformer([kpx, kpy])) ))
+            # print("heatmap.shape =", heatmap.shape)
+            
+        # generate background heatmap
+        maxed_heatmap = np.max(heatmap[:,:,:], axis=2)  # print("maxed_heatmap.shape = ", maxed_heatmap.shape)
+            
+        heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
+        # print("final heatmap.shape =", heatmap.shape)
+        # np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_heatmap30x40.npy"), heatmap)
+            
+            
+        # for 18x2 PAFs =====================================
+        for n, pair in enumerate(paf_pairs):
+            # print("writing paf for index", n, pair)
+            index_array = np.zeros((gt_height, gt_width, 2))
+            for i in range(index_array.shape[0]):
+                for j in range(index_array.shape[1]):
+                        index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+                
+            if n == 0:
+                paf = get_pafx_pafy(index_array, 
+                                    kp0xy=kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
+                                    kp1xy=kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]))
+            else:
+                paf = np.dstack(( paf,  get_pafx_pafy(index_array, 
+                        kp0xy=kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
+                        kp1xy=kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]))
+                        ))
+            # print("paf.shape =", paf.shape)
+
+                    
+        # print("final paf.shape =========================", paf.shape)
+        # np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_paf30x40.npy"), paf)
+        
+        return paf, heatmap
+    
+        
+        
+#     def create_heatmaps(self, joints, mask):
+
+#         heatmaps = np.zeros(RmpeGlobalConfig.parts_shape, dtype=np.float)
+
+#         self.put_joints(heatmaps, joints)
+#         sl = slice(RmpeGlobalConfig.heat_start, RmpeGlobalConfig.heat_start + RmpeGlobalConfig.heat_layers)
+#         heatmaps[RmpeGlobalConfig.bkg_start] = 1. - np.amax(heatmaps[sl,:,:], axis=0)
+
+#         self.put_limbs(heatmaps, joints)
+
+#         heatmaps *= mask
+
+#         return heatmaps
+
+
+#     def put_gaussian_maps(self, heatmaps, layer, joints):
+
+#         # actually exp(a+b) = exp(a)*exp(b), lets use it calculating 2d exponent, it could just be calculated by
+
+#         for i in range(joints.shape[0]):
+
+#             exp_x = np.exp(-(self.grid_x-joints[i,0])**2/self.double_sigma2)
+#             exp_y = np.exp(-(self.grid_y-joints[i,1])**2/self.double_sigma2)
+
+#             exp = np.outer(exp_y, exp_x)
+
+#             # note this is correct way of combination - min(sum(...),1.0) as was in C++ code is incorrect
+#             # https://github.com/ZheC/Realtime_Multi-Person_Pose_Estimation/issues/118
+#             heatmaps[RmpeGlobalConfig.heat_start + layer, :, :] = np.maximum(heatmaps[RmpeGlobalConfig.heat_start + layer, :, :], exp)
+
+#     def put_joints(self, heatmaps, joints):
+
+#         for i in range(RmpeGlobalConfig.num_parts):
+#             visible = joints[:,i,2] < 2
+#             self.put_gaussian_maps(heatmaps, i, joints[visible, i, 0:2])
+
+
+#     def put_vector_maps(self, heatmaps, layerX, layerY, joint_from, joint_to):
+
+#         count = np.zeros(heatmaps.shape[1:], dtype=np.int)
+
+#         for i in range(joint_from.shape[0]):
+#             (x1, y1) = joint_from[i]
+#             (x2, y2) = joint_to[i]
+
+#             dx = x2-x1
+#             dy = y2-y1
+#             dnorm = sqrt(dx*dx + dy*dy)
+
+#             if dnorm==0:  # we get nan here sometimes, it's kills NN
+#                 # TODO: handle it better. probably we should add zero paf, centered paf, or skip this completely
+#                 print("Parts are too close to each other. Length is zero. Skipping")
+#                 continue
+
+#             dx = dx / dnorm
+#             dy = dy / dnorm
+
+#             assert not isnan(dx) and not isnan(dy), "dnorm is zero, wtf"
+
+#             min_sx, max_sx = (x1, x2) if x1 < x2 else (x2, x1)
+#             min_sy, max_sy = (y1, y2) if y1 < y2 else (y2, y1)
+
+#             min_sx = int(round((min_sx - self.thre) / RmpeGlobalConfig.stride))
+#             min_sy = int(round((min_sy - self.thre) / RmpeGlobalConfig.stride))
+#             max_sx = int(round((max_sx + self.thre) / RmpeGlobalConfig.stride))
+#             max_sy = int(round((max_sy + self.thre) / RmpeGlobalConfig.stride))
+
+#             # check PAF off screen. do not really need to do it with max>grid size
+#             if max_sy < 0:
+#                 continue
+
+#             if max_sx < 0:
+#                 continue
+
+#             if min_sx < 0:
+#                 min_sx = 0
+
+#             if min_sy < 0:
+#                 min_sy = 0
+
+#             #TODO: check it again
+#             slice_x = slice(min_sx, max_sx) # + 1     this mask is not only speed up but crops paf really. This copied from original code
+#             slice_y = slice(min_sy, max_sy) # + 1     int g_y = min_y; g_y < max_y; g_y++ -- note strict <
+
+#             dist = distances(self.X[slice_y,slice_x], self.Y[slice_y,slice_x], x1, y1, x2, y2)
+#             dist = dist <= self.thre
+
+#             # TODO: averaging by pafs mentioned in the paper but never worked in C++ augmentation code
+#             heatmaps[layerX, slice_y, slice_x][dist] = (dist * dx)[dist]  # += dist * dx
+#             heatmaps[layerY, slice_y, slice_x][dist] = (dist * dy)[dist] # += dist * dy
+#             count[slice_y, slice_x][dist] += 1
+
+#         # TODO: averaging by pafs mentioned in the paper but never worked in C++ augmentation code
+#         # heatmaps[layerX, :, :][count > 0] /= count[count > 0]
+#         # heatmaps[layerY, :, :][count > 0] /= count[count > 0]
+
+#     def put_limbs(self, heatmaps, joints):
+
+#         for (i,(fr,to)) in enumerate(RmpeGlobalConfig.limbs_conn):
+
+
+#             visible_from = joints[:,fr,2] < 2
+#             visible_to = joints[:,to, 2] < 2
+#             visible = visible_from & visible_to
+
+#             layerX, layerY = (RmpeGlobalConfig.paf_start + i*2, RmpeGlobalConfig.paf_start + i*2 + 1)
+#             self.put_vector_maps(heatmaps, layerX, layerY, joints[visible, fr, 0:2], joints[visible, to, 0:2])
+
+
+
+# def test():
+
+#     hm = Heatmapper()
+#     d = distances(hm.X, hm.Y, 100, 100, 50, 150)
+#     print(d < 8.)
+
+# if __name__ == "__main__":
+#     np.set_printoptions(precision=1, linewidth=1000, suppress=True, threshold=100000)
+#     test()
+

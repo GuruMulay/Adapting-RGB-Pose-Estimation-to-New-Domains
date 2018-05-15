@@ -13,12 +13,24 @@ class EggnogGlobalConfig:
     height = 240
 
     stride = 8
-    kp_x_offset_half = 240 # remember we cropped 240 pixels from left and right side of the image
+    ground_truth_factor = 8  # 240//8=30 320//8=40
+    
+    kp_x_offset_half = 240  # remember we cropped 240 pixels from left and right side of the image
     kp_to_img_stride = 4.5  # factor by which kp should be scaled DOWN to make them valid in img space of width and height = (width, height)
     
     n_paf = 36
     n_hm = 20
-
+    n_kp = 19
+    n_axis = 2  # x and y as of now
+    
+    paf_pairs_indices = [[1, 14], [0, 1], [12, 0], [13, 0], 
+                    [4, 14], [5, 4], [6, 5], [7, 6], [15, 7], [16, 6],
+                    [8, 14], [9, 8], [10, 9], [11, 10], [17, 11], [18, 10],
+                    [14, 2], [2, 3]
+                    ]
+    
+    
+    # haven't used following
     parts = ["nose", "neck", "Rsho", "Relb", "Rwri", "Lsho", "Lelb", "Lwri", "Rhip", "Rkne", "Rank", "Lhip", "Lkne", "Lank", "Reye", "Leye", "Rear", "Lear"]
     num_parts = len(parts)
     parts_dict = dict(zip(parts, range(num_parts)))
@@ -55,6 +67,14 @@ class TransformationParams:
     max_rotate_degree = 40.
     center_perterb_max = 40.  # x and y
     flip_prob = 0.5
+    
+    # added for eggnog
+    alpha = 1.5
+    limb_width = 1.0  # pixels  # for low res pafs
+    # limb_width = 1.25*4  # pixels  # for high res pafs used for verification
+    
+    
+    # not sure why sigma is greater than 1 and so large (7)
     #!# sigma = 7.
     #!# paf_thre = 8.  # it is original 1.0 * stride in this program
 
