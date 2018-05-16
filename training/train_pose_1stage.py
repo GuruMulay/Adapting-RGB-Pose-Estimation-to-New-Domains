@@ -64,12 +64,12 @@ if split_videowise:
     
 # sessionwise split
 if split_sessionwise:
-#     train_sessions = ['s04']
-#     val_sessions = ['s07']
+    train_sessions = ['s04']
+    val_sessions = ['s07']
     
-    # toy dataset2
-    train_sessions = ['s04_layout_p08_7v']
-    val_sessions = ['s04_layout_p08_3v']
+#     # toy dataset2
+#     train_sessions = ['s04_layout_p08_7v']
+#     val_sessions = ['s04_layout_p08_3v']
      
     # only take 1/div_factor fraction of data
     div_factor_train = 5
@@ -109,7 +109,7 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0514180300pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0515180300pm/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
 TRAINING_LOG = BASE_DIR + "training_eggnog.csv"
@@ -248,8 +248,9 @@ params = {'data_path': eggnog_dataset_path,
           'hm_height': 30,
           'hm_width': 40,
           'hm_n_channels': 20,
-          'save_transformed_path': None 
+          'save_transformed_path': None
          }
+# '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r1/'
 
 
 # old version for toy dataset where all the images were in the same folder

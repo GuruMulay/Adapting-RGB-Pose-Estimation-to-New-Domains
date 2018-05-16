@@ -6,6 +6,11 @@ from math import sqrt, isnan
 from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, TransformationParams
 
 
+from sklearn.preprocessing import normalize
+import skimage.io
+from skimage.transform import resize, pyramid_reduce
+
+
 class Heatmapper:
 
     def __init__(self, alpha=TransformationParams.alpha, limb_width=TransformationParams.limb_width):
@@ -15,17 +20,25 @@ class Heatmapper:
         
         
         # cached common parameters which same for all iterations and all pictures
-        gt_height = EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor
-        gt_width = EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor
+        self.gt_height = EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor
+        self.gt_width = EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor
         
-        paf_pairs = EggnogGlobalConfig.paf_pairs_indices
+        self.paf_pairs = EggnogGlobalConfig.paf_pairs_indices
         
 #         stride = RmpeGlobalConfig.stride
-#         width = RmpeGlobalConfig.width//stride
-#         height = RmpeGlobalConfig.height//stride
+#         width = RmpeGlobalConfig.width/stride
+#         height = RmpeGlobalConfig.height/stride
+    
+    
+    def kpx_kpy_transformer(self, kp_list):
+        # transform [kpx kpy] from image space to ground truth space
+        kpx_transformed = (kp_list[0])/EggnogGlobalConfig.ground_truth_factor
+        kpy_transformed = (kp_list[1])/EggnogGlobalConfig.ground_truth_factor
+
+        return [kpx_transformed, kpy_transformed]
 
         
-    def get_heatmap(index_array, pxpy_list):
+    def get_heatmap(self, index_array, pxpy_list):
         # index_array (240/8, 320/8, 2), pxpy_list [px, py]
         kp_location_array = np.zeros(index_array.shape)
         assert(index_array.shape[0] > 0 and index_array.shape[1] > 0)
@@ -44,7 +57,7 @@ class Heatmapper:
         return heatmap
 
     
-    def get_pafx_pafy(index_array, kp0xy, kp1xy):
+    def get_pafx_pafy(self, index_array, kp0xy, kp1xy):
         """
         kp0xy, kp1xy: lists [pixel_x, pixel_y] for kp0 and kp1
         """
@@ -86,7 +99,7 @@ class Heatmapper:
         return paf_array
 
 
-    def get_pafs_and_hms_heatmaps(sk_keypoints):
+    def get_pafs_and_hms_heatmaps(self, sk_keypoints):
         """
         sk_keypoints: (38,) shaped keypoints with alternate x and y corrdinates for 19 joints
         """
@@ -99,15 +112,15 @@ class Heatmapper:
             kpx = sk_keypoints[2*kpn]
             kpy = sk_keypoints[2*kpn+1]  # print(kpx, kpy)
                 
-            index_array = np.zeros((gt_height, gt_width, 2))
+            index_array = np.zeros((self.gt_height, self.gt_width, 2))
             for i in range(index_array.shape[0]):
                 for j in range(index_array.shape[1]):
                     index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
                 
             if kpn == 0:
-                heatmap = get_heatmap(index_array, kpx_kpy_transformer([kpx, kpy]))   # /4 because image is 1080 x 1920 and so are the original pixel locations of the keypoints 
+                heatmap = self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]))   # transform from image space to ground truth space
             else:
-                heatmap = np.dstack(( heatmap, get_heatmap(index_array, kpx_kpy_transformer([kpx, kpy])) ))
+                heatmap = np.dstack(( heatmap, self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy])) ))
             # print("heatmap.shape =", heatmap.shape)
             
         # generate background heatmap
@@ -119,22 +132,22 @@ class Heatmapper:
             
             
         # for 18x2 PAFs =====================================
-        for n, pair in enumerate(paf_pairs):
+        for n, pair in enumerate(self.paf_pairs):
             # print("writing paf for index", n, pair)
-            index_array = np.zeros((gt_height, gt_width, 2))
+            index_array = np.zeros((self.gt_height, self.gt_width, 2))
             for i in range(index_array.shape[0]):
                 for j in range(index_array.shape[1]):
                         index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
                 
             if n == 0:
-                paf = get_pafx_pafy(index_array, 
-                                    kp0xy=kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
-                                    kp1xy=kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]))
+                paf = self.get_pafx_pafy(index_array, 
+                                    kp0xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
+                                    kp1xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]))
             else:
-                paf = np.dstack(( paf,  get_pafx_pafy(index_array, 
-                        kp0xy=kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
-                        kp1xy=kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]))
-                        ))
+                paf = np.dstack(( paf,  self.get_pafx_pafy(index_array, 
+                                kp0xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
+                                kp1xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]))
+                                ))
             # print("paf.shape =", paf.shape)
 
                     

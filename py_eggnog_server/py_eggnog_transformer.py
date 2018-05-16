@@ -8,7 +8,7 @@ from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, Transformation
 
 def keypoint_transform_to_240x320_image(kp):
     """
-    transforms kps (which are in 1080x1920 space) to 240x320 space. Note that this is noth the gound truth space 30x40.
+    transforms kps (which are in 1080x1920 space) to 240x320 space. Note that this is not the gound truth space 30x40.
     """
     
     # print("before 240x320 tx", kp.shape, kp)
@@ -33,7 +33,8 @@ class AugmentSelection:
        
     @staticmethod
     def random():
-        flip = random.uniform(0.,1.) > TransformationParams.flip_prob
+#         flip = random.uniform(0.,1.) > TransformationParams.flip_prob
+        flip = False
         degree = random.uniform(-1.,1.) * TransformationParams.max_rotate_degree
         scale = (TransformationParams.scale_max - TransformationParams.scale_min)*random.uniform(0.,1.)+TransformationParams.scale_min \
             if random.uniform(0.,1.) > TransformationParams.scale_prob else 1. # TODO: see 'scale improbability' TODO above
@@ -125,9 +126,9 @@ class Transformer:
 #         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.height, EggnogGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))  # ValueError: could not broadcast input array from shape (320,240,3) into shape (240,320,3)
         
         # before transforming the keypoints by affine transform M, we need to bring them in the 240x320 image space from the original 1080x1920 space.
-        print("before 240x320 tx", kp.shape, kp)
+#         print("before 240x320 tx", kp.shape, kp)
         kp = keypoint_transform_to_240x320_image(kp)
-        print("after 240x320 tx", kp.shape, kp)
+#         print("after 240x320 tx", kp.shape, kp)
         
         # apply affine transform to kps
         kp_original = np.append(kp.reshape((1, EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_axis)), 
@@ -146,11 +147,11 @@ class Transformer:
         
 #         # this is incorrect because the M calculated for image cannot be use to transform the ground truth maps. M was calculated on 240x320 image, but ground truth is 30x40 image. 
 #         for i in range(EggnogGlobalConfig.n_hm):
-#             label_hm[:, :, i] = cv2.warpAffine(label_hm[:, :, i], M, (EggnogGlobalConfig.width//EggnogGlobalConfig.stride, EggnogGlobalConfig.height//EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+#             label_hm[:, :, i] = cv2.warpAffine(label_hm[:, :, i], M, (EggnogGlobalConfig.width/EggnogGlobalConfig.stride, EggnogGlobalConfig.height/EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
 #             ##### !!!!! NEED to figure out the DEFAULT for pixels after transform value which is zero if no joint is present
         
 #         for i in range(EggnogGlobalConfig.n_paf):
-#             label_paf[:, :, i] = cv2.warpAffine(label_paf[:, :, i], M, (EggnogGlobalConfig.width//EggnogGlobalConfig.stride, EggnogGlobalConfig.height//EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+#             label_paf[:, :, i] = cv2.warpAffine(label_paf[:, :, i], M, (EggnogGlobalConfig.width/EggnogGlobalConfig.stride, EggnogGlobalConfig.height/EggnogGlobalConfig.stride), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
 #             ##### !!!!! NEED to figure out the DEFAULT for pixels after transform value which is zero if no joint is present
 
 
@@ -186,5 +187,5 @@ class Transformer:
 
 #         print("img after", img[100][100][1])
 #         print("img all grey???", (img==127).all())  # all are 127 pixels
-        return img, kp_converted.reshape((EggnogGlobalConfig.n_kp,))
+        return img, kp_converted.reshape((EggnogGlobalConfig.n_kp*2,))
 

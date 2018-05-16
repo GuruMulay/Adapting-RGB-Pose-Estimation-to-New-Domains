@@ -13,7 +13,7 @@ class EggnogGlobalConfig:
     height = 240
 
     stride = 8
-    ground_truth_factor = 8  # 240//8=30 320//8=40
+    ground_truth_factor = 8  # 240/8=30 320/8=40
     
     kp_x_offset_half = 240  # remember we cropped 240 pixels from left and right side of the image
     kp_to_img_stride = 4.5  # factor by which kp should be scaled DOWN to make them valid in img space of width and height = (width, height)

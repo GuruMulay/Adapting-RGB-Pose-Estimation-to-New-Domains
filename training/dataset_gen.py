@@ -94,7 +94,7 @@ class DataGenerator(object):
                 yield [X], [y1, y2] * n_stages
         
         
-    def transform_data(self, img, label_paf, label_hm, kp, augment):
+    def transform_data(self, img, kp, augment):
 
         aug = AugmentSelection.random() if augment else AugmentSelection.unrandom()
 #         print("transform data: before transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)  
@@ -104,7 +104,7 @@ class DataGenerator(object):
 #         print("transform data: after transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
 #         print("aug =====", augment)
 
-        label_paf, label_hm = self.heatmapper.get_pafs_and_hms_heatmaps(kp)
+        label_paf, label_hm = self.heatmapper.get_pafs_and_hms_heatmaps(kp)  # these kp are in the image space (240x320)
         
         return img, label_paf, label_hm, kp
 
@@ -168,8 +168,6 @@ class DataGenerator(object):
             # v2
             X[i, :, :, :], y1[i, :, :, :], y2[i, :, :, :], kp[i, :] = self.transform_data(
                                                     skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg')),
-                                                    np.load(os.path.join(self.data_path, ID + '_paf30x40.npy')),
-                                                    np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy')),
                                                     np.load(os.path.join(self.data_path, ID + '.npy')),
                                                     augment
                                                     )  # loads individual images and npys, returns their transformed versions without changing shapes
