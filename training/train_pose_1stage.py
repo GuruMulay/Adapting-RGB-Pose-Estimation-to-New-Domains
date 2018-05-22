@@ -30,13 +30,13 @@ import pprint
 
 verbose_print = True
 
-split_videowise = True  # split train and val for the same video, 70% frames for train and 30% frames for val
-split_sessionwise = False  # split train and val sessionwise, 70% session for train and 30% session for val
+split_videowise = False  # split train and val for the same video, 70% frames for train and 30% frames for val
+split_sessionwise = True  # split train and val sessionwise, 70% session for train and 30% session for val
 
 
 # eggnog sessions split
 # 1 staged 03201805pm lr = 2e-5
-# 1 staged 0320180530pm  higher lr (2e-4). (lr 2e-3 causes nan errors!)
+# 1 staged 0320180530pm higher lr (2e-4). (lr 2e-3 causes nan errors!)
 # train_sessions = ['s20', 's08', 's09', 's10']
 # val_sessions = ['s15']
 
@@ -107,9 +107,9 @@ stepsize = 10000*17 # in original code each epoch is 121746 and step change is o
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0515180300pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0522181100am/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
 TRAINING_LOG = BASE_DIR + "training_eggnog.csv"
@@ -248,9 +248,9 @@ params = {'data_path': eggnog_dataset_path,
           'hm_height': 30,
           'hm_width': 40,
           'hm_n_channels': 20,
-          'save_transformed_path': None
+          'save_transformed_path': '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r2/'
          }
-# '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r1/'
+# '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r2/'
 
 
 # old version for toy dataset where all the images were in the same folder

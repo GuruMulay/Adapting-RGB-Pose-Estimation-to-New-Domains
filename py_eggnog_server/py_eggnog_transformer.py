@@ -6,7 +6,7 @@ import random
 from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, TransformationParams
 
 
-def keypoint_transform_to_240x320_image(kp):
+def keypoint_transform_to_240x320_image(kp, flip):
     """
     transforms kps (which are in 1080x1920 space) to 240x320 space. Note that this is not the gound truth space 30x40.
     """
@@ -14,7 +14,11 @@ def keypoint_transform_to_240x320_image(kp):
     # print("before 240x320 tx", kp.shape, kp)
     for k in range(len(kp)):
         if k%2 == 0:  # x axis
-            kp[k] = (kp[k]-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride
+            if flip:
+                kp[k] = EggnogGlobalConfig.width - ((kp[k] - EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride)  # 320 - x
+            else:
+                kp[k] = (kp[k]-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride
+                
         else:  # y axis
             kp[k] = kp[k]/EggnogGlobalConfig.kp_to_img_stride
         
@@ -33,8 +37,8 @@ class AugmentSelection:
        
     @staticmethod
     def random():
-#         flip = random.uniform(0.,1.) > TransformationParams.flip_prob
-        flip = False
+        flip = random.uniform(0.,1.) > TransformationParams.flip_prob
+        # flip = False
         degree = random.uniform(-1.,1.) * TransformationParams.max_rotate_degree
         scale = (TransformationParams.scale_max - TransformationParams.scale_min)*random.uniform(0.,1.)+TransformationParams.scale_min \
             if random.uniform(0.,1.) > TransformationParams.scale_prob else 1. # TODO: see 'scale improbability' TODO above
@@ -127,7 +131,7 @@ class Transformer:
         
         # before transforming the keypoints by affine transform M, we need to bring them in the 240x320 image space from the original 1080x1920 space.
 #         print("before 240x320 tx", kp.shape, kp)
-        kp = keypoint_transform_to_240x320_image(kp)
+        kp = keypoint_transform_to_240x320_image(kp, aug.flip)
 #         print("after 240x320 tx", kp.shape, kp)
         
         # apply affine transform to kps
@@ -136,7 +140,7 @@ class Transformer:
                                axis = 2)  # third column is made all 1s because we want to multiply by affine mat M
         
         kp_converted = np.matmul(M, kp_original.transpose([0,2,1])).transpose([0,2,1])
-        
+                    
         
 #         print("img, M shapes", img.shape, M, M.shape)  # (240, 320, 3) (2, 3)
 #         cv2.imshow("before transform", img)
