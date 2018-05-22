@@ -8,7 +8,8 @@ from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, Transformation
 
 def keypoint_transform_to_240x320_image(kp, flip):
     """
-    transforms kps (which are in 1080x1920 space) to 240x320 space. Note that this is not the gound truth space 30x40.
+    Transforms kps (which are in 1080x1920 space) to 240x320 space. Note that this is not the gound truth space 30x40.
+    This flip is unnecessary because matrix M already takes care of flipping. So keep flip=False always.
     """
     
     # print("before 240x320 tx", kp.shape, kp)
@@ -54,8 +55,8 @@ class AugmentSelection:
         flip = False
         degree = 0.
         scale = 1.
-        x_offset = 0
-        y_offset = 0
+        x_offset = 0.
+        y_offset = 0.
 
         return AugmentSelection(flip, degree, (x_offset,y_offset), scale)
 
@@ -131,7 +132,8 @@ class Transformer:
         
         # before transforming the keypoints by affine transform M, we need to bring them in the 240x320 image space from the original 1080x1920 space.
 #         print("before 240x320 tx", kp.shape, kp)
-        kp = keypoint_transform_to_240x320_image(kp, aug.flip)
+#         kp = keypoint_transform_to_240x320_image(kp, aug.flip)  # Incorrect. This flip is unnecessary because matrix M already takes care of flipping. So keep flip=False always.
+        kp = keypoint_transform_to_240x320_image(kp, flip=False)
 #         print("after 240x320 tx", kp.shape, kp)
         
         # apply affine transform to kps

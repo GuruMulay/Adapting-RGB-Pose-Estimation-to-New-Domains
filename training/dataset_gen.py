@@ -15,7 +15,8 @@ class DataGenerator(object):
     'Generates data for Keras'
     def __init__(self, data_path, height = 240, width = 320, n_channels = 3, batch_size = 5,
                  paf_height = 30, paf_width = 40, paf_n_channels = 36,
-                 hm_height = 30, hm_width = 40, hm_n_channels = 20, 
+                 hm_height = 30, hm_width = 40, hm_n_channels = 20,
+                 mode = "",
                  save_transformed_path = None):
         
         'Initialization'
@@ -45,7 +46,7 @@ class DataGenerator(object):
     
     
     def generate_and_save(self, file_IDs, n_stages, shuffle=True, augment=True):
-        'Generates batches of samples and save transfomrd version to a folder'
+        'Generates batches of samples and save transformed version to a folder'
         print("in gen")
         indexes = self.__get_exploration_order(file_IDs, shuffle)
             
@@ -61,7 +62,7 @@ class DataGenerator(object):
             X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment)
         
     
-    def generate(self, file_IDs, n_stages, shuffle=True, augment=True):
+    def generate(self, file_IDs, n_stages, shuffle=True, augment=True, mode=""):
         'Generates batches of samples'
         # print("in gen")
         # Infinite loop
@@ -77,7 +78,7 @@ class DataGenerator(object):
                 file_IDs_temp = [file_IDs[k] for k in indexes[i*self.batch_size:(i+1)*self.batch_size]]
                 
                 # Generate data
-                X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment)
+                X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment, mode)
                 
                 """
                 returns [x] = (batch_size, height (240), width (320), 3)
@@ -119,7 +120,7 @@ class DataGenerator(object):
         return indexes
 
     
-    def __data_generation(self, file_IDs_temp, augment):
+    def __data_generation(self, file_IDs_temp, augment, mode):
         'Generates data of batch_size samples' 
         # X: (n_samples == batch_size, height (240), width (320), n_channels (3) (rgb or bgr))
         

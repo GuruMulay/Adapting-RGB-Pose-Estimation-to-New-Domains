@@ -30,8 +30,8 @@ import pprint
 
 verbose_print = True
 
-split_videowise = True  # split train and val for the same video, 70% frames for train and 30% frames for val
-split_sessionwise = False  # split train and val sessionwise, 70% session for train and 30% session for val
+split_videowise = False  # split train and val for the same video, 70% frames for train and 30% frames for val
+split_sessionwise = True  # e.g., s04 for training s07 for validation; OR split train and val sessionwise, 70% session for train and 30% session for val
 
 
 # eggnog sessions split
@@ -73,7 +73,7 @@ if split_sessionwise:
      
     # only take 1/div_factor fraction of data
     div_factor_train = 5
-    div_factor_val = 5
+    div_factor_val = 10
     
     print("train_sessions", train_sessions)
     print("val_sessions", val_sessions)
@@ -107,9 +107,9 @@ stepsize = 10000*17 # in original code each epoch is 121746 and step change is o
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0522180300pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0522181100am/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
 TRAINING_LOG = BASE_DIR + "training_eggnog.csv"
@@ -251,7 +251,7 @@ params = {'data_path': eggnog_dataset_path,
           'save_transformed_path': None
          }
 # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r2/'
-# '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r2/'
+# '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r1/'
 
 
 # old version for toy dataset where all the images were in the same folder
@@ -352,7 +352,7 @@ if split_videowise:
 
     
 # shuffle train and val list
-random.seed(110)
+random.seed(115)
 random.shuffle(partition_train)
 random.shuffle(partition_val)
 
@@ -379,8 +379,8 @@ print("partition dict train and val len", len(partition_dict['train']), len(part
 # as key + '_heatmap240.npy' and key + '_paf240.npy'
 
 # # Generators
-training_generator = DataGenerator(**params).generate(partition_dict['train'], n_stages, shuffle=True, augment=True)
-validation_generator = DataGenerator(**params).generate(partition_dict['val'], n_stages, shuffle=False, augment=False)
+training_generator = DataGenerator(**params).generate(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train")
+validation_generator = DataGenerator(**params).generate(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val")
 
 
 # train_di = train_client.generate()  # original
