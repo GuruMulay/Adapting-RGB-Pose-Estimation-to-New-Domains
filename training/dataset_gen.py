@@ -65,7 +65,6 @@ class DataGenerator(object):
     def generate(self, file_IDs, n_stages, shuffle=True, augment=True, mode=""):
         'Generates batches of samples'
         # print("in gen")
-        # Infinite loop
         while 1:
             # Generate order of exploration of dataset
             indexes = self.__get_exploration_order(file_IDs, shuffle)
@@ -85,12 +84,6 @@ class DataGenerator(object):
                         [y1] = (batch_size, height (30), width (40), 36) pafs
                         [y2] = (batch_size, height (30), width (40), 20) heatmaps
                 """
-#                 yield [X], [y1, y2,
-#                             y1, y2,
-#                             y1, y2,
-#                             y1, y2,
-#                             y1, y2,
-#                             y1, y2]
                     
                 yield [X], [y1, y2] * n_stages
         
@@ -145,7 +138,7 @@ class DataGenerator(object):
 #             y1[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_paf30_40.npy'))
 #             y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30_40.npy'))
             
-            # original dataset
+#             # original dataset
 #             # v1
 #             X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))
 #             # print("img shape (h, w, c)", img.shape)  # height, width, channels (rgb)
@@ -167,11 +160,14 @@ class DataGenerator(object):
 #             X, y1, y2, kp = self.transform_data(X, y1, y2, kp, augment)
             
             # v2
+            kpi = np.load(os.path.join(self.data_path, ID + '.npy'))
             X[i, :, :, :], y1[i, :, :, :], y2[i, :, :, :], kp[i, :] = self.transform_data(
                                                     skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg')),
-                                                    np.load(os.path.join(self.data_path, ID + '.npy')),
+                                                    np.delete(kpi, np.arange(0, kpi.size, 3)), 
                                                     augment
                                                     )  # loads individual images and npys, returns their transformed versions without changing shapes
+            
+#             np.delete(sk_keypoints_with_tracking_info, np.arange(0, sk_keypoints_with_tracking_info.size, 3))  # this is without tracking info, by removing the tracking info
             
 #             print("X[i, :, :, :], y1[i, :, :, :], y2[i, :, :, :],", X[i, :, :, :].shape, X[i, :, :, :].dtype, type(X[i, :, :, :]), y1[i, :, :, :].shape, y2[i, :, :, :].shape)
 #             print("X", X[i, :, :, :])

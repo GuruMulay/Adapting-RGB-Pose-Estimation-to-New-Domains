@@ -64,16 +64,16 @@ if split_videowise:
     
 # sessionwise split
 if split_sessionwise:
-    train_sessions = ['s04']
-    val_sessions = ['s07']
+    train_sessions = ['s01', 's02', 's03', 's04']
+    val_sessions = ['s05']
     
 #     # toy dataset2
 #     train_sessions = ['s04_layout_p08_7v']
 #     val_sessions = ['s04_layout_p08_3v']
      
     # only take 1/div_factor fraction of data
-    div_factor_train = 5
-    div_factor_val = 10
+    div_factor_train = 15
+    div_factor_val = 20
     
     print("train_sessions", train_sessions)
     print("val_sessions", val_sessions)
@@ -107,9 +107,10 @@ stepsize = 10000*17 # in original code each epoch is 121746 and step change is o
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0522181100am/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0601180100pm/training/"
+print("creating a directory", BASE_DIR)
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
 TRAINING_LOG = BASE_DIR + "training_eggnog.csv"
@@ -297,7 +298,7 @@ if split_sessionwise:
     # create train list
     for session_name in train_sessions:
         for layout in [l for l in os.listdir(os.path.join(eggnog_dataset_path, session_name)) if "layout" in l]:
-            for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf))]:
+            for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "version" not in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
                 print("train video_folder =====================", os.path.join(session_name, layout, video_folder))
 
                 for file in sorted(os.listdir(os.path.join(eggnog_dataset_path, session_name, layout, video_folder))):
@@ -309,7 +310,7 @@ if split_sessionwise:
     # create val list
     for session_name in val_sessions:
         for layout in [l for l in os.listdir(os.path.join(eggnog_dataset_path, session_name)) if "layout" in l]:
-            for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf))]:
+            for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "version" not in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
                 print("val video_folder =====================", os.path.join(session_name, layout, video_folder))
 
                 for file in sorted(os.listdir(os.path.join(eggnog_dataset_path, session_name, layout, video_folder))):
@@ -324,7 +325,7 @@ if split_videowise:
     # create train list and val list simultaneously
     for session_name in train_val_sessions:
         for layout in [l for l in os.listdir(os.path.join(eggnog_dataset_path, session_name)) if "layout" in l]:
-            for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf))]:
+            for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "version" not in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
                 files_list_video_folder = sorted(os.listdir(os.path.join(eggnog_dataset_path, session_name, layout, video_folder)))
                 n_files_in_video_folder = len(files_list_video_folder)  # includes .jpg and .npy*3 (4 files per image)
                 print("train and val video_folder, n_files =====================", os.path.join(session_name, layout, video_folder), n_files_in_video_folder)
@@ -462,4 +463,4 @@ model.fit_generator(train_di,
                     initial_epoch=last_epoch
                     )
 
-# print("Training Completed!")
+print("Training Completed!")
