@@ -24,7 +24,7 @@ split_sessionwise = True  # e.g., s04 for training s07 for validation; OR split 
 
 # sessionwise split
 if split_sessionwise:
-    train_sessions = ['s01']  # , 's02', 's03', 's04']
+    train_sessions = ['s05']  # , 's02', 's03', 's04']
 #     val_sessions = ['s05']
      
     # only take 1/div_factor fraction of data
@@ -32,42 +32,15 @@ if split_sessionwise:
 #     div_factor_val = 20
     
     print("train_sessions", train_sessions)
-    print("val_sessions", val_sessions)
     print("div_factor_train", div_factor_train)
-    print("div_factor_val", div_factor_val)
     
-
-
-# testing eggnog with only n stages
-n_stages = 1
-print("------------------ Flags ----------------------------")
-print("preload_vgg", preload_vgg)
-print("split_videonwise", split_videowise)
-print("split_sessionwise", split_sessionwise)
-print("", )
-
-
-"""
-# notes
-
-"""
-
-batch_size = 5
-base_lr = 1e-5
-momentum = 0.9
-weight_decay = 2e-5
-lr_policy = "step"
-gamma = 0.333
-stepsize = 10000*17 # in original code each epoch is 121746 and step change is on 17th epoch
-max_iter = 200
-use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 
 # eggonog sessions
-eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"  # original size dataset
-# eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/"  # small dataset
+# eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"  # original size dataset
+eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/"  # small dataset
 print("eggnog_dataset_path ==============", eggnog_dataset_path)
 
 params = {'data_path': eggnog_dataset_path,
@@ -100,7 +73,6 @@ partition_dict['val'] = []
 
 if split_sessionwise:   
     # go through sessions and add img path to lists
-    # create train list
     for session_name in train_sessions:
         for layout in [l for l in os.listdir(os.path.join(eggnog_dataset_path, session_name)) if "layout" in l]:
             for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "version" not in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
