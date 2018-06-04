@@ -9,6 +9,9 @@ def ltr_parts(parts_dict):
 
 class EggnogGlobalConfig:
 
+    original_w = 1920
+    original_h = 1080
+    
     width = 320
     height = 240
 

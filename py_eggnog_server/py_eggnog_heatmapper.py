@@ -31,13 +31,32 @@ class Heatmapper:
     
     
     def kpx_kpy_transformer(self, kp_list):
+        """
+        transform kps from 320x240 image space to 40x30 ground truth space
+        """
         # transform [kpx kpy] from image space to ground truth space
         kpx_transformed = (kp_list[0])/EggnogGlobalConfig.ground_truth_factor
         kpy_transformed = (kp_list[1])/EggnogGlobalConfig.ground_truth_factor
 
         return [kpx_transformed, kpy_transformed]
 
-        
+    
+    def kpx_kpy_transformer_v0(self, kp_list):
+        """
+        used when dataset is generated meaning the images are extracted from videos and gt is generated
+        transform kps from 1920x1080 to 320x240 space and then to 40x30 ground truth space
+        """
+        # for normal res pafs
+        kpx_transformed = (kp_list[0]-EggnogGlobalConfig.kp_x_offset_half) / EggnogGlobalConfig.kp_to_img_stride/EggnogGlobalConfig.ground_truth_factor
+        kpy_transformed = (kp_list[1])/EggnogGlobalConfig.kp_to_img_stride/EggnogGlobalConfig.ground_truth_factor
+
+        # for high res pafs, this was used for verification
+        # kpx_transformed = (kp_list[0]-240)/4.5
+        # kpy_transformed = (kp_list[1])/4.5
+
+        return [kpx_transformed, kpy_transformed]
+    
+
     def get_heatmap(self, index_array, pxpy_list):
         # index_array (240/8, 320/8, 2), pxpy_list [px, py]
         kp_location_array = np.zeros(index_array.shape)
@@ -101,7 +120,7 @@ class Heatmapper:
 
     def get_pafs_and_hms_heatmaps(self, sk_keypoints):
         """
-        sk_keypoints: (38,) shaped keypoints with alternate x and y corrdinates for 19 joints
+        sk_keypoints: (38,) shaped keypoints with alternate x and y corrdinates for 19 joints; # these kp are in the image space (240x320)
         """
         
         # 3 from eggnog_preprocessing/preprocessing/read_videos_write_img_paf_hm.py

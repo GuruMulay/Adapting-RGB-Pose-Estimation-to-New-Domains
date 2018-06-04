@@ -1,3 +1,7 @@
+"""
+Did not pursue this way of generating augmented images offline! 
+"""
+
 import sys
 import os
 import re
