@@ -57,7 +57,7 @@ class Heatmapper:
         return [kpx_transformed, kpy_transformed]
     
 
-    def get_heatmap(self, index_array, pxpy_list):
+    def get_heatmap_v1(self, index_array, pxpy_list):
         # index_array (240/8, 320/8, 2), pxpy_list [px, py]
         kp_location_array = np.zeros(index_array.shape)
         assert(index_array.shape[0] > 0 and index_array.shape[1] > 0)
@@ -74,9 +74,34 @@ class Heatmapper:
     #         heat_map /= np.max(heat_map)
 
         return heatmap
+    
+    
+    def get_heatmap(self, index_array, pxpy_list, tracking_state):
+        # index_array (240/8, 320/8, 2), pxpy_list [px, py], tracking_state 0, 1, or 2
+        kp_location_array = np.zeros(index_array.shape)
+        assert(index_array.shape[0] > 0 and index_array.shape[1] > 0)
+
+        if pxpy_list[0] is None:
+            heatmap = kp_location_array[:,:,0]
+        else:
+            if tracking_state == 0:  # meaning that the joint was not tracked in that frame, so return all black image
+                print("untracked kp")
+                heatmap = kp_location_array[:,:,0]
+            else:
+                kp_location_array[:, :, 0] = pxpy_list[1]
+                kp_location_array[:, :, 1] = pxpy_list[0]
+                heatmap = np.exp((self.alpha)*-np.sqrt(np.sum(np.square(index_array - kp_location_array), axis=2)))
+                heatmap /= np.max(heatmap)
+
+                if tracking_state == 1:  # joint is inferred, so return grey gaussian instead of white one?
+                    ### print("inferred kp")
+                    heatmap /= 2  # using this the white peak of gaussian is reduced in its magnitude by a factor of 2
+
+        return heatmap
+
 
     
-    def get_pafx_pafy(self, index_array, kp0xy, kp1xy):
+    def get_pafx_pafy_v1(self, index_array, kp0xy, kp1xy):
         """
         kp0xy, kp1xy: lists [pixel_x, pixel_y] for kp0 and kp1
         """
@@ -117,8 +142,122 @@ class Heatmapper:
 
         return paf_array
 
+    
+    def get_pafx_pafy(self, index_array, kp0xy, kp1xy, tracking_states_pair):
+        """
+        kp0xy, kp1xy: lists [pixel_x, pixel_y] for kp0 and kp1
+        tracking_states_pair = [0, 0] or [1, 0] etc
+        """
+        assert(index_array.shape[0] > 0 and index_array.shape[1] > 0)
 
-    def get_pafs_and_hms_heatmaps(self, sk_keypoints):
+        paf_array = np.zeros(index_array.shape)  # stores calculated pafs (values between -1 to 1)
+
+        if 0 in tracking_states_pair:  # if one of the joints is UNTRACKED (0) then return zeroed paf_array
+            print("tracking_states_pair", tracking_states_pair)
+            return paf_array
+
+        p_vector_array = np.zeros(index_array.shape)  # slice 0 stores all y, slice 1 stores all x
+
+        # p_vector_array correpsonds to non-unit vector (p - x(j1, k)) from the paper # j1 is kp0
+        # swapped indexing (0, 1) because slice 0 of index array stores all y locations and slice 1 stores all x locations
+        p_vector_array[:,:,0] = index_array[:,:,0] - kp0xy[1]
+        p_vector_array[:,:,1] = index_array[:,:,1] - kp0xy[0]
+
+        # v_vector_array corresponds to v from the paper
+        vect = np.array((kp1xy[1] - kp0xy[1], kp1xy[0] - kp0xy[0])).reshape(1, -1)  # print("vect", vect)
+        v_unit_arr, limb_length_arr = normalize(vect, return_norm=True)  # y component at 0th index # x component at 1st index
+        v_unit = v_unit_arr[0]
+        limb_length = limb_length_arr[0]  # print("vect unit and limb length", v_unit, limb_length)
+        v_perpendicular = [v_unit[1], -v_unit[0]]  # print("v_perp", v_perpendicular)
+        #     v_vector_array[:,:,0] = v_unit[0]  # y component at 0th index
+        #     v_vector_array[:,:,1] = v_unit[1]  # x component at 1st index
+
+        # print("generating paf for the limb formed by", kp0xy, kp1xy)
+        # paf_array = index_array  # this caused gray gradient error
+
+        for r in range(paf_array.shape[0]):
+            for c in range(paf_array.shape[1]):
+                # print("r, c = ", r, c)
+                # check if p is "on the limb"
+                if (0 <= np.dot(v_unit, [p_vector_array[r,c,0], p_vector_array[r,c,1]]) <= limb_length) and (np.abs(np.dot(v_perpendicular, [p_vector_array[r,c,0], p_vector_array[r,c,1]])) <= self.limb_width):
+                    paf_array[r, c, 1] = v_unit[0] # y component of the expected vector is assigned to the 1st channel so that we append PAFs in x and then y order
+                    paf_array[r, c, 0] = v_unit[1] # x component of the expected vector is assigned to the 0th channel so that we append PAFs in x and then y order
+    #                 print("x, y", v_unit[1], v_unit[0])
+    #             else:
+    #                 print("should assign zero")
+        # return paf so that x slice is first (index 0) and the y slice is second (index 1)
+
+        return paf_array
+
+    
+    
+    def get_pafs_and_hms_heatmaps(self, sk_keypoints, sk_kp_tracking_info):
+        """
+        sk_keypoints: (38,) shaped keypoints with alternate x and y corrdinates for 19 joints; # these kp are in the image space (240x320)
+        kp_tracking_info: 0 means UNTRACKED or out of frame
+        """
+        
+        # 3 from eggnog_preprocessing/preprocessing/read_videos_write_img_paf_hm.py
+        # print("sk_kp shape =", sk_keypoints.shape)  # (38, )
+        
+        # for 20 (actually 19 + background) heatmaps =====================================
+        for kpn in range(sk_keypoints.shape[0]//2):
+            kpx = sk_keypoints[2*kpn]
+            kpy = sk_keypoints[2*kpn+1]  # print(kpx, kpy)
+            tracking_state = sk_kp_tracking_info[kpn]
+            
+            index_array = np.zeros((self.gt_height, self.gt_width, 2))
+            for i in range(index_array.shape[0]):
+                for j in range(index_array.shape[1]):
+                    index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+                
+            if kpn == 0:
+                heatmap = self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]), tracking_state)   # transform from image space to ground truth space
+            else:
+                heatmap = np.dstack(( heatmap, self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]), tracking_state) ))
+            # print("heatmap.shape =", heatmap.shape)
+            
+        # generate background heatmap
+        maxed_heatmap = np.max(heatmap[:,:,:], axis=2)  # print("maxed_heatmap.shape = ", maxed_heatmap.shape)
+            
+        heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
+        # print("final heatmap.shape =", heatmap.shape)
+        # np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_heatmap30x40.npy"), heatmap)
+            
+            
+        # for 18x2 PAFs =====================================
+        for n, pair in enumerate(self.paf_pairs):
+            # print("writing paf for index", n, pair)
+            index_array = np.zeros((self.gt_height, self.gt_width, 2))
+            for i in range(index_array.shape[0]):
+                for j in range(index_array.shape[1]):
+                        index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+                        
+            tracking_states = [sk_kp_tracking_info[pair[0]], sk_kp_tracking_info[pair[1]]]
+            
+            if n == 0:
+                paf = self.get_pafx_pafy(index_array, 
+                                    kp0xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
+                                    kp1xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]),
+                                    tracking_states_pair=tracking_states
+                                    )
+            else:
+                paf = np.dstack(( paf,  self.get_pafx_pafy(index_array, 
+                                kp0xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
+                                kp1xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]),
+                                tracking_states_pair=tracking_states
+                                )
+                                ))
+            # print("paf.shape =", paf.shape)
+
+                    
+        # print("final paf.shape =========================", paf.shape)
+        # np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_paf30x40.npy"), paf)
+        
+        return paf, heatmap
+    
+    
+    def get_pafs_and_hms_heatmaps_v1(self, sk_keypoints):
         """
         sk_keypoints: (38,) shaped keypoints with alternate x and y corrdinates for 19 joints; # these kp are in the image space (240x320)
         """
@@ -175,7 +314,6 @@ class Heatmapper:
         
         return paf, heatmap
     
-        
         
 #     def create_heatmaps(self, joints, mask):
 

@@ -88,20 +88,39 @@ class DataGenerator(object):
                 yield [X], [y1, y2] * n_stages
         
         
-    def transform_data(self, img, kp, augment):
+    def transform_data_v1(self, img, kp, augment):
 
         aug = AugmentSelection.random() if augment else AugmentSelection.unrandom()
 #         print("transform data: before transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)  
         # transform data: before transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
         # transform data: after transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
-        img, kp = Transformer.transform(img, kp, aug=aug)
+        img, kp = Transformer.transform_v1(img, kp, aug=aug)
 #         print("transform data: after transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
 #         print("aug =====", augment)
 
-        label_paf, label_hm = self.heatmapper.get_pafs_and_hms_heatmaps(kp)  # these kp are in the image space (240x320)
+        label_paf, label_hm = self.heatmapper.get_pafs_and_hms_heatmaps_v1(kp)  # these kp are in the image space (240x320)
         
         return img, label_paf, label_hm, kp
 
+    
+    def transform_data(self, img, kp, kp_tracking_info, augment):
+        """
+        img: 240x320 RGB image
+        kp: these are in 1920x1080 space (38, )  19*2 (x,y)
+        kp_tracking_info: tracking info for 19 joints (19, )
+        augment Boolean
+        """
+
+        aug = AugmentSelection.random() if augment else AugmentSelection.unrandom()
+    #         print("transform data: before transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)  
+            # transform data: before transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
+            # transform data: after transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
+        img, kp, kp_tracking_info = Transformer.transform(img, kp, kp_tracking_info, aug=aug)
+    #         print("transform data: after transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
+        label_paf, label_hm = self.heatmapper.get_pafs_and_hms_heatmaps(kp, kp_tracking_info)  # these kp are in the image space (240x320)
+
+        return img, label_paf, label_hm, kp
+    
     
     def __get_exploration_order(self, file_IDs, shuffle):
         'Generates order of exploration'
@@ -161,7 +180,7 @@ class DataGenerator(object):
             
             # v2
             kpi = np.load(os.path.join(self.data_path, ID + '.npy'))
-            X[i, :, :, :], y1[i, :, :, :], y2[i, :, :, :], kp[i, :] = self.transform_data(
+            X[i, :, :, :], y1[i, :, :, :], y2[i, :, :, :], kp[i, :] = self.transform_data_v1(
                                                     skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg')),
                                                     np.delete(kpi, np.arange(0, kpi.size, 3)), 
                                                     augment

@@ -16,22 +16,28 @@ from skimage.transform import resize, pyramid_reduce
 from py_eggnog_server.py_eggnog_heatmapper import Heatmapper
 from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, TransformationParams
 
+# for augnmentation
+from py_eggnog_server.py_eggnog_transformer import Transformer, AugmentSelection
+
+
 np.set_printoptions(threshold=np.nan)
 
+
 # global variables
-eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/"  # for testing this python file
+eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"  # for testing this python file
+n_aug_per_image = 5
+
 # eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
 # eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_s123/"  # for s01, s02, s03
-# ground_truth_factor = 8
 
-# paf_pairs_indices = [[1, 14], [0, 1], [12, 0], [13, 0], 
-#                     [4, 14], [5, 4], [6, 5], [7, 6], [15, 7], [16, 6],
-#                     [8, 14], [9, 8], [10, 9], [11, 10], [17, 11], [18, 10],
-#                     [14, 2], [2, 3]
-#                     ]
 
 ### ********** ###
 process_s010203 = False
+
+
+# # heatmapper instantiated
+# heatmapper = Heatmapper()
+
 
 """
 # note 1:
@@ -89,35 +95,6 @@ def load_skeleton_data_for_video(video_file_path):
     assert(xyz_skeleton_data.shape[1] == 58) # 19 joints * 3 (x,y,z) + 1 (time)
     print("xyz_skeleton_data.shape", xyz_skeleton_data.shape)
     
-#     rgb_skeleton_data = np.loadtxt(video_file_path[:-9] + 'RGBSkeleton.txt', dtype='float', delimiter=',', skiprows=1, 
-#                                    converters=cnv, 
-#                                    usecols=(8,9,  
-#                                              16,17,
-#                                              24,25,
-#                                              32,33,
-#                                              40,41,
-#                                              48,49,
-#                                              56,57,
-#                                              64,65,
-#                                              72,73,
-#                                              80,81,
-#                                              88,89,
-#                                              96,97,
-#                                              104,105,  # HipLeft
-#                                              # 112,113,  # KneeLeft
-#                                              # 120,121,  # AnkleLeft
-#                                              # 128,129,  # FootLeft
-#                                              136,137,
-#                                              # 144,145,  # KneeRight
-#                                              # 152,153,  # AnkleRight
-#                                              # 160,161,  # FootRight
-#                                              168,169,  # SpineShoulder
-#                                              176,177,  # HandTipLeft
-#                                              184,185,  # ThumbLeft
-#                                              192,193,  # HandTipRight
-#                                              200,201  # ThumbRight
-#                                             ))
-
 
     visible_skeleton_kp = [7,8,9,  # SpineBase 0
                            15,16,17,  # SpineMid
@@ -369,7 +346,7 @@ def find_nearest_frameindex_from_skeleton_file(sk_time_array, time):
 
 # _v1 older version under preprocessing repo; newer version is under keras-*/preprocesssing folder
 
-def get_heatmap_v1(index_array, pxpy_list, tracking_state):
+def get_heatmap(index_array, pxpy_list, tracking_state):
     # index_array (240/8, 320/8, 2), pxpy_list [px, py], tracking_state 0, 1, or 2
     # alpha = 1.5
     alpha = TransformationParams.alpha
@@ -389,13 +366,13 @@ def get_heatmap_v1(index_array, pxpy_list, tracking_state):
             heatmap /= np.max(heatmap)
             
             if tracking_state == 1:  # joint is inferred, so return grey gaussian instead of white one?
-                print("inferred kp")
+                # print("inferred kp")
                 heatmap /= 2  # using this the white peak of gaussian is reduced in its magnitude by a factor of 2
                 
     return heatmap
 
 
-def get_pafx_pafy_v1(index_array, kp0xy, kp1xy, tracking_states_pair):
+def get_pafx_pafy(index_array, kp0xy, kp1xy, tracking_states_pair):
     """
     kp0xy, kp1xy: lists [pixel_x, pixel_y] for kp0 and kp1
     tracking_states_pair = [0, 0] or [1, 0] etc
@@ -531,9 +508,9 @@ def save_2d_keypoints_and_images_v1(video_name, video_path, npy_path, rgb_skelet
                                 index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
                 
                         if kpn == 0:
-                            heatmap = get_heatmap_v1(index_array, kpx_kpy_transformer([kpx, kpy]), tracking_state)   # /4 because image is 1080 x 1920 and so are the original pixel locations of the keypoints 
+                            heatmap = get_heatmap(index_array, kpx_kpy_transformer([kpx, kpy]), tracking_state)   # /4 because image is 1080 x 1920 and so are the original pixel locations of the keypoints 
                         else:
-                            heatmap = np.dstack(( heatmap, get_heatmap_v1(index_array, kpx_kpy_transformer([kpx, kpy]), tracking_state) ))
+                            heatmap = np.dstack(( heatmap, get_heatmap(index_array, kpx_kpy_transformer([kpx, kpy]), tracking_state) ))
                         # print("heatmap.shape =", heatmap.shape)
             
                     # generate background heatmap
@@ -555,13 +532,13 @@ def save_2d_keypoints_and_images_v1(video_name, video_path, npy_path, rgb_skelet
                         tracking_states = [sk_kp_tracking_info[pair[0]], sk_kp_tracking_info[pair[1]]]
                         
                         if n == 0:
-                            paf = get_pafx_pafy_v1(index_array, 
+                            paf = get_pafx_pafy(index_array, 
                                         kp0xy=kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
                                         kp1xy=kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]),
                                         tracking_states_pair=tracking_states
                                         )
                         else:
-                            paf = np.dstack(( paf,  get_pafx_pafy_v1(index_array, 
+                            paf = np.dstack(( paf,  get_pafx_pafy(index_array, 
                                         kp0xy=kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
                                         kp1xy=kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]),
                                         tracking_states_pair=tracking_states
@@ -584,6 +561,182 @@ def save_2d_keypoints_and_images_v1(video_name, video_path, npy_path, rgb_skelet
     ## cap.release()
     print("mismatch_count =",  mismatch_count)
     
+
+def transform_data(img, kp, kp_tracking_info, augment):
+    """
+    img: 240x320 RGB image
+    kp: these are in 1920x1080 space (38, )  19*2 (x,y)`
+    kp_tracking_info: tracking info for 19 joints (19, )
+    augment Boolean
+    """
+    
+    aug = AugmentSelection.random() if augment else AugmentSelection.unrandom()
+#         print("transform data: before transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)  
+        # transform data: before transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
+        # transform data: after transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
+    ### aug.print_aug_params()
+    
+    # Transformer instantiated
+    transformer = Transformer()
+    
+    ### print("kp info", kp, kp_tracking_info)
+    img, kp, kp_tracking_info = transformer.transform(img, kp, kp_tracking_info, aug=aug)
+#         print("transform data: after transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
+
+    # Heatmapper instantiated
+    heatmapper = Heatmapper()
+    label_paf, label_hm = heatmapper.get_pafs_and_hms_heatmaps(kp, kp_tracking_info)  # these kp are in the image space (240x320)
+    
+    
+    return img, label_paf, label_hm, kp
+
+    
+    
+def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skeleton_data, frame_time_dict):
+    mismatch_count = 0
+    
+    container = av.open(video_path)
+    for k, fr in enumerate(container.decode(video=0)):
+        ### print("k ==========================", k)
+        assert(k == fr.index)
+        nearest_idx, nearest_time = find_nearest_frameindex_from_skeleton_file(rgb_skeleton_data[...,0], frame_time_dict[k]) # take column 0 (time) from rgb data
+       
+        if (abs(frame_time_dict[k] - nearest_time) > 1000000):  # 100 ns ticks, so 1000000 = 0.1sec
+            mismatch_count += 1
+            continue  # do not add the nearest found index if the difference is really big (>0.1sec)
+        else:         
+            # print(rgb_skeleton_data[nearest_idx])
+            if(np.inf not in rgb_skeleton_data[nearest_idx]):  # do not add if there is np.inf in the line
+                
+                success = True  # hard-coded for PyAV
+                frame = fr.to_image()
+                # converting PIL (<class 'PIL.Image.Image'>) to <class 'numpy.ndarray'>
+                img = np.asarray(frame)  # h, w, c
+                
+                if success:
+                    os.makedirs(os.path.join(npy_path, video_name), exist_ok=True)
+                    save_dir = os.path.join(npy_path, video_name)
+                    
+                    os.makedirs(os.path.join(npy_path, video_name + "_augmented"), exist_ok=True)
+                    save_dir_augmented = os.path.join(npy_path, video_name + "_augmented")
+                    
+                    # 1
+                    # save image with the original resolution
+                    # cv2.imwrite(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + '.jpg'), frame)
+
+                    # 2
+                    # save downsampled image
+                    img_central = img[:, EggnogGlobalConfig.kp_x_offset_half:(EggnogGlobalConfig.original_w-EggnogGlobalConfig.kp_x_offset_half), :]
+                    # downsample by 4.5
+                    img_down = pyramid_reduce(img_central, downscale=EggnogGlobalConfig.kp_to_img_stride)  # better than resize
+                    skimage.io.imsave(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_240x320.jpg"), img_down)  # 240x320
+                    
+                    
+                    # 3
+                    # save heatmaps skimage.io.imsave(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_240x320.jpg"), img_down)and pafs
+                    sk_keypoints_with_tracking_info = rgb_skeleton_data[nearest_idx][1:]  # ignore index 0 (time)
+                    sk_kp_tracking_info = sk_keypoints_with_tracking_info[np.arange(0, sk_keypoints_with_tracking_info.size, 3)]  # only the info about tracking states (0, 1, 2) for 19 joints
+                    sk_keypoints = np.delete(sk_keypoints_with_tracking_info, np.arange(0, sk_keypoints_with_tracking_info.size, 3))  # this is without tracking info, by removing the tracking info
+                    # print("sk_kp shape =", sk_keypoints.shape)  # (38, )
+                    
+                    
+                    ################################
+                    # save augmented (transformed) images and their ground truths
+                    for a in range(n_aug_per_image):
+                        ### print("a", a)
+#                         X = np.empty((EggnogGlobalConfig.height, EggnogGlobalConfig.width, 3), dtype=np.uint8)
+                        # print(type(X), X.dtype)  # uint8
+#                         y1 = np.empty((EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.n_paf))
+#                         y2 = np.empty((EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.n_hm))
+#                         kp_transformed = np.empty((EggnogGlobalConfig.n_kp*2))  # (batch x (20-1)*2)  # e.g., 5x38
+                        
+                        # somehow feeding in img_down does not work! So this is a workaround
+                        img_read = skimage.io.imread(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_240x320.jpg"))
+                        sk_keypoints_with_tracking_info = rgb_skeleton_data[nearest_idx][1:]  # ignore index 0 (time)
+                        sk_kp_tracking_info = sk_keypoints_with_tracking_info[np.arange(0, sk_keypoints_with_tracking_info.size, 3)]  # only the info about tracking states (0, 1, 2) for 19 joints
+                        sk_keypoints = np.delete(sk_keypoints_with_tracking_info, np.arange(0, sk_keypoints_with_tracking_info.size, 3))  # this is without tracking info, by removing the tracking info
+                        
+                        # HAD to reread the sk_* becasue following transform data function modifies them for every call
+                        ### print("kp info", sk_keypoints, sk_kp_tracking_info)
+                        X, y1, y2, kp_transformed = transform_data(img_read,
+                                        sk_keypoints,  # without tracking info
+                                        sk_kp_tracking_info,  # tracking info only
+                                        augment=True)
+                        
+                        # print(type(X), X.dtype, X.astype(np.uint8).dtype) # <class 'numpy.ndarray'> float64 uint8 
+                        # use astype to convert from float64 to uint8 
+                        skimage.io.imsave(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_240x320_" + str(a) + ".jpg"), X.astype(np.uint8))
+                        
+                        np.save(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_paf30x40_" + str(a) + ".npy"), y1)  # pafs
+                        
+                        np.save(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_heatmap30x40_" + str(a) + ".npy"), y2)  # heatmaps
+                        
+                    ################################
+                    
+                    # for 20 (actually 19 + background) heatmaps =====================================
+                    for kpn in range(sk_keypoints.shape[0]//2):
+                        kpx = sk_keypoints[2*kpn]
+                        kpy = sk_keypoints[2*kpn+1]  # print(kpx, kpy)
+                        tracking_state = sk_kp_tracking_info[kpn]
+                        
+                        # index_array = np.zeros((240//ground_truth_factor, 320//ground_truth_factor, 2))
+                        index_array = np.zeros((EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor, 2))
+                        for i in range(index_array.shape[0]):
+                            for j in range(index_array.shape[1]):
+                                index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+                
+                        if kpn == 0:
+                            heatmap = get_heatmap(index_array, kpx_kpy_transformer([kpx, kpy]), tracking_state)   # /4 because image is 1080 x 1920 and so are the original pixel locations of the keypoints 
+                        else:
+                            heatmap = np.dstack(( heatmap, get_heatmap(index_array, kpx_kpy_transformer([kpx, kpy]), tracking_state) ))
+                        # print("heatmap.shape =", heatmap.shape)
+            
+                    # generate background heatmap
+                    maxed_heatmap = np.max(heatmap[:,:,:], axis=2)  # print("maxed_heatmap.shape = ", maxed_heatmap.shape)
+            
+                    heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
+                    # print("final heatmap.shape =", heatmap.shape)
+                    np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_heatmap30x40.npy"), heatmap)
+            
+            
+                    # for 18x2 PAFs =====================================
+                    for n, pair in enumerate(EggnogGlobalConfig.paf_pairs_indices):
+                        # print("writing paf for index", n, pair)
+                        index_array = np.zeros((EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor, 2))
+                        for i in range(index_array.shape[0]):
+                            for j in range(index_array.shape[1]):
+                                index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+                        
+                        tracking_states = [sk_kp_tracking_info[pair[0]], sk_kp_tracking_info[pair[1]]]
+                        
+                        if n == 0:
+                            paf = get_pafx_pafy(index_array, 
+                                        kp0xy=kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
+                                        kp1xy=kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]),
+                                        tracking_states_pair=tracking_states
+                                        )
+                        else:
+                            paf = np.dstack(( paf,  get_pafx_pafy(index_array, 
+                                        kp0xy=kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
+                                        kp1xy=kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]),
+                                        tracking_states_pair=tracking_states
+                                        )
+                                    ))
+                        # print("paf.shape =", paf.shape)
+
+                    
+                    # print("final paf.shape =========================", paf.shape)
+                    np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_paf30x40.npy"), paf)
+            
+                    
+                    # 4
+                    # save the 2d keypoints of shape (38,) in original 1920x1080 space
+                    # print(rgb_skeleton_data[nearest_idx])
+                    # print(save_dir, os.path.join("", video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + '.npy'))
+                    np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + '.npy'), rgb_skeleton_data[nearest_idx][1:])  # index 0 is time # saving all 57 values 19 * 3 (tracking, x, y)
+    
+    
+    print("mismatch_count =",  mismatch_count)
     
     
 def process_session(session_name):  
@@ -615,10 +768,10 @@ def process_session(session_name):
             npy_path = os.path.join(eggnog_dataset_path, session_name, layout)  # save npy files (in a video-named folder) in this folder
             
             # old version with no tracking taken into consideration in generation of gt (actually it is now), and no random augmentattion.
-            save_2d_keypoints_and_images_v1(video[:-4], video_file_path, npy_path, rgb_skeleton_data, frame_time_dict)
+#             save_2d_keypoints_and_images_v1(video[:-4], video_file_path, npy_path, rgb_skeleton_data, frame_time_dict)
             
             # new version where augmentation is done and saved for every image. Also, tracking info is taken into consideration
-#             save_2d_keypoints_and_images_v2(video[:-4], video_file_path, npy_path, rgb_skeleton_data, frame_time_dict)
+            save_2d_keypoints_and_images_v2(video[:-4], video_file_path, npy_path, rgb_skeleton_data, frame_time_dict)
             
             
 
@@ -641,8 +794,8 @@ def test_heatmap_gen():
             index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
     
     ## 30/2 = 15; 16*4.5*8 = 540 20 => 720
-    heatmap = get_heatmap_v1(index_array, kpx_kpy_transformer([1920/2, 1080/2]), tracking_state=2)
-#     heatmap = get_heatmap_v1(index_array, [160, 120], tracking_state=2)
+    heatmap = get_heatmap(index_array, kpx_kpy_transformer([1920/2, 1080/2]), tracking_state=2)
+#     heatmap = get_heatmap(index_array, [160, 120], tracking_state=2)
     
     skimage.io.imsave(os.path.join( "./test_imgs/test_15v2_tr2.jpg"), heatmap)
     
@@ -672,7 +825,7 @@ def test_paf_gen():
     
     tracking_states = [0, 0]
     
-    paf = get_pafx_pafy_v1(index_array, # [20, 10], [10, 20],
+    paf = get_pafx_pafy(index_array, # [20, 10], [10, 20],
                                         kp0xy=kpx_kpy_transformer([1920/3, 1080/3]), 
                                         kp1xy=kpx_kpy_transformer([1920/2, 1080/2]),
                                         tracking_states_pair = tracking_states

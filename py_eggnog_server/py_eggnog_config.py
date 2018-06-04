@@ -63,7 +63,7 @@ class EggnogGlobalConfig:
     
 class TransformationParams:
 
-    target_dist = 1.0; # 0.6; originally 0.6
+    target_dist = 1.0;  # 0.6; originally 0.6
     scale_prob = 0.5;   # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
     scale_min = 0.9;  #  originally 0.5
     scale_max = 1.1;

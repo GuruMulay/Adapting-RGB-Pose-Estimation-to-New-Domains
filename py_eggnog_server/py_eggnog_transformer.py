@@ -8,7 +8,7 @@ from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, Transformation
 
 def keypoint_transform_to_240x320_image(kp, flip):
     """
-    Transforms kps (which are in 1080x1920 space) to 240x320 space. Note that this is not the gound truth space 30x40.
+    Transforms kps (which are in 1080x1920 space) to 240x320 space. Note that this is not the ground truth space 30x40.
     This flip is unnecessary because matrix M already takes care of flipping. So keep flip=False always.
     """
     
@@ -34,6 +34,13 @@ class AugmentSelection:
         self.degree = degree  #rotate
         self.crop = crop  #shift actually
         self.scale = scale
+        
+        
+    def print_aug_params(self,):
+        print("self.flip", self.flip)
+        print("self.degree", self.degree)
+        print("self.crop", self.crop)
+        print("self.scale", self.scale)
 
        
     @staticmethod
@@ -72,8 +79,11 @@ class AugmentSelection:
         B = self.scale * sin(self.degree / 180. * pi )
 
         scale_size = TransformationParams.target_dist / scale_self * self.scale
-
+        ### print("scale_size", scale_size)
+        
         (width, height) = center
+        ### print("center width, height", width, height)
+        
         center_x = width + self.crop[0]
         center_y = height + self.crop[1]
 
@@ -106,7 +116,53 @@ class AugmentSelection:
 class Transformer:
 
     @staticmethod
-    def transform(img, kp, aug=AugmentSelection.random()):
+    def transform(img, kp, kp_tracking_info, aug=AugmentSelection.random()):
+#         print("in class transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
+#         print("img before", img[200][200][:])
+    
+#         # TODO: need to understand this, scale_provided[0] is height of main person divided by 368, caclulated in generate_hdf5.py
+#         print(img.shape, type(img), img.dtype, img.shape)
+
+        assert np.isnan(kp).any() == False  # check if all elements are not nan
+        kp_center_x = (kp[0] + kp[2] + kp[28])/3   # sum of spineshoulder, spinemid, and spinebase
+        kp_center_y = (kp[1] + kp[3] + kp[29])/3   # sum of spineshoulder, spinemid, and spinebase
+        ### print("kp center x = kp[0], kp[2], kp[28]", kp[0], kp[2], kp[28])  # 992.4157 991.5563 991.6354
+        ### print("kp center y = kp[1], kp[3], kp[29]", kp[1], kp[3], kp[29])  # 633.3717 490.9328 355.1452
+        ### print("kp_center_x y", kp_center_x, kp_center_y)
+    
+        M = aug.affine([(kp_center_x-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride, kp_center_y/EggnogGlobalConfig.kp_to_img_stride], 1)  # normalized height of the person in image! (assumed, need to change)
+#         print("kp based center = ", (kp_center_x-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride, kp_center_y/EggnogGlobalConfig.kp_to_img_stride)
+#         M = aug.affine([160, 120], 0.65)  # normalized height of the person in image! (assumed, need to change) 
+
+
+        # before transforming the keypoints by affine transform M, we need to bring them in the 240x320 image space from the original 1080x1920 space.
+#         kp = keypoint_transform_to_240x320_image(kp, aug.flip)  # Incorrect. This flip is unnecessary because matrix M already takes care of flipping. So keep flip=False always.
+        kp = keypoint_transform_to_240x320_image(kp, flip=False)
+#         print("after 240x320 tx", kp.shape, kp)
+        
+        # apply affine transform to kps
+        kp_original = np.append(kp.reshape((1, EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_axis)), 
+                               np.ones((1, EggnogGlobalConfig.n_kp, 1)),
+                               axis = 2)  # third column is made all 1s because we want to multiply by affine mat M
+        
+        kp_converted = np.matmul(M, kp_original.transpose([0,2,1])).transpose([0,2,1])
+        
+        ######### TODO
+        # kp_tracking_info is updated if kp falls beyond the image w or h
+        #########
+        
+#         print("img, M shapes", img.shape, M, M.shape)  # (240, 320, 3) (2, 3)
+#         cv2.imshow("before transform", img)
+#         cv2.waitKey(0)
+        
+        img = cv2.warpAffine(img, M, (EggnogGlobalConfig.width, EggnogGlobalConfig.height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
+        
+
+        return img, kp_converted.reshape((EggnogGlobalConfig.n_kp*2,)), kp_tracking_info
+
+
+    @staticmethod
+    def transform_v1(img, kp, aug=AugmentSelection.random()):
 #         print("in class transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
 #         print("img before", img[200][200][:])
     
@@ -122,7 +178,8 @@ class Transformer:
         kp_center_y = (kp[1] + kp[3] + kp[29])/3   # sum of spineshoulder, spinemid, and spinebase
 #         print("kp center x = kp[0], kp[2], kp[28]", kp[0], kp[2], kp[28])  # 992.4157 991.5563 991.6354
 #         print("kp center y = kp[1], kp[3], kp[29]", kp[1], kp[3], kp[29])  # 633.3717 490.9328 355.1452
-        
+#         print("kp_center_x y", kp_center_x, kp_center_y)
+    
         M = aug.affine([(kp_center_x-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride, kp_center_y/EggnogGlobalConfig.kp_to_img_stride], 1)  # normalized height of the person in image! (assumed, need to change)
 #         print("kp based center = ", (kp_center_x-EggnogGlobalConfig.kp_x_offset_half)/EggnogGlobalConfig.kp_to_img_stride, kp_center_y/EggnogGlobalConfig.kp_to_img_stride)
 #         M = aug.affine([160, 120], 0.65)  # normalized height of the person in image! (assumed, need to change) 
