@@ -16,6 +16,13 @@ import keras.backend as K
 
 from glob import glob
 
+"""
+NOTE:
+ONLINE version
+Working version where data is read and augmented on-the-fly. 
+0601180100pm (5 session for training and 1 for validation)
+
+"""
 
 #g
 train_in_finetune_mode = False
@@ -64,16 +71,16 @@ if split_videowise:
     
 # sessionwise split
 if split_sessionwise:
-    train_sessions = ['s01', 's02', 's03', 's04']
-    val_sessions = ['s05']
+    train_sessions = ['s04']
+    val_sessions = ['s07']
     
 #     # toy dataset2
 #     train_sessions = ['s04_layout_p08_7v']
 #     val_sessions = ['s04_layout_p08_3v']
      
     # only take 1/div_factor fraction of data
-    div_factor_train = 15
-    div_factor_val = 20
+    div_factor_train = 10
+    div_factor_val = 70
     
     print("train_sessions", train_sessions)
     print("val_sessions", val_sessions)
@@ -109,7 +116,7 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0601180100pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0605180100pm/training/"
 print("creating a directory", BASE_DIR)
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
@@ -298,7 +305,7 @@ if split_sessionwise:
     # create train list
     for session_name in train_sessions:
         for layout in [l for l in os.listdir(os.path.join(eggnog_dataset_path, session_name)) if "layout" in l]:
-            for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "version" not in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
+            for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "version" not in os.path.join(eggnog_dataset_path, session_name, layout, vf) and "augmented" not in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
                 print("train video_folder =====================", os.path.join(session_name, layout, video_folder))
 
                 for file in sorted(os.listdir(os.path.join(eggnog_dataset_path, session_name, layout, video_folder))):
@@ -310,7 +317,7 @@ if split_sessionwise:
     # create val list
     for session_name in val_sessions:
         for layout in [l for l in os.listdir(os.path.join(eggnog_dataset_path, session_name)) if "layout" in l]:
-            for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "version" not in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
+            for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "version" not in os.path.join(eggnog_dataset_path, session_name, layout, vf) and "augmented" not in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
                 print("val video_folder =====================", os.path.join(session_name, layout, video_folder))
 
                 for file in sorted(os.listdir(os.path.join(eggnog_dataset_path, session_name, layout, video_folder))):
@@ -380,8 +387,8 @@ print("partition dict train and val len", len(partition_dict['train']), len(part
 # as key + '_heatmap240.npy' and key + '_paf240.npy'
 
 # # Generators
-training_generator = DataGenerator(**params).generate(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train")
-validation_generator = DataGenerator(**params).generate(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val")
+training_generator = DataGenerator(**params).generate(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train", online_aug=True)
+validation_generator = DataGenerator(**params).generate(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val", online_aug=True)
 
 
 # train_di = train_client.generate()  # original

@@ -62,7 +62,7 @@ class DataGenerator(object):
             X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment)
         
     
-    def generate(self, file_IDs, n_stages, shuffle=True, augment=True, mode=""):
+    def generate(self, file_IDs, n_stages, shuffle=True, augment=True, mode="", online_aug=False):
         'Generates batches of samples'
         # print("in gen")
         while 1:
@@ -77,8 +77,11 @@ class DataGenerator(object):
                 file_IDs_temp = [file_IDs[k] for k in indexes[i*self.batch_size:(i+1)*self.batch_size]]
                 
                 # Generate data
-                X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment, mode)
-                
+                if online_aug:
+                    X, y1, y2, kp = self.__data_generation_online(file_IDs_temp, augment, mode)
+                else:
+                    X, y1, y2, kp = self.__data_generation_offline(file_IDs_temp, augment, mode)
+                    
                 """
                 returns [x] = (batch_size, height (240), width (320), 3)
                         [y1] = (batch_size, height (30), width (40), 36) pafs
@@ -132,7 +135,7 @@ class DataGenerator(object):
         return indexes
 
     
-    def __data_generation(self, file_IDs_temp, augment, mode):
+    def __data_generation_online(self, file_IDs_temp, augment, mode):
         'Generates data of batch_size samples' 
         # X: (n_samples == batch_size, height (240), width (320), n_channels (3) (rgb or bgr))
         
@@ -204,5 +207,48 @@ class DataGenerator(object):
 #             returning transformed data and labels...
 #             transform data: after transform (240, 320, 3) (30, 40, 36) (30, 40, 20) (38,)
 
+            
+        return X, y1, y2, kp
+    
+    
+    def __data_generation_offline(self, file_IDs_temp, augment, mode):
+        """
+        Offline version where data is read from the *_augmneted folders
+        """
+        # X: (n_samples == batch_size, height (240), width (320), n_channels (3) (rgb or bgr))
+        
+        # Initialization
+        # zero init helps in verifying dimensions of input image? during assignment?
+        X = np.empty((self.batch_size, self.height, self.width, self.n_channels), dtype=np.uint8)
+        y1 = np.empty((self.batch_size, self.paf_height, self.paf_width, self.paf_n_channels))
+        y2 = np.empty((self.batch_size, self.hm_height, self.hm_width, self.hm_n_channels))
+        kp = np.empty((self.batch_size, (self.hm_n_channels-1)*2))  # (batch x (20-1)*2)  # e.g., 5x38
+        
+        # X = rgb images of original resolution (batch_size,240x320x3); y1 = pafs (batch_size,30x40x36); y2 = heatmaps (batch_size,30x40x20)
+        
+        # Generate data
+        for i, ID in enumerate(file_IDs_temp):
+#             print(ID)  # s07_1video/part1_layout_p14/20151116_230338_00_Video/20151116_230338_00_Video_vfr_105_skfr_105
+
+#             # option 2
+#             # verify dimensions of input image with parameters
+#             # append images to X
+#             # append labels to y1 and y2
+            
+            # load stored, augmented images and ground truth
+            X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))
+            # print("img shape (h, w, c)", img.shape)  # height, width, channels (rgb)
+            # Stored ground truths
+            y1[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'))
+            y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'))
+            kp = None  # no need to read kp because it's not used after this line
+
+            # save transformed 
+            if self.save_transformed_path:
+#                 print("saving ", ID.split('/')[-1] + '_240x320_transformed.jpg')
+                skimage.io.imsave(self.save_transformed_path + "/" + ID.split('/')[-1] + '_240x320_transformed.jpg', X[i, :, :, :])
+                np.save(self.save_transformed_path + "/" + ID.split('/')[-1] + '_paf30x40_transformed.npy', y1[i, :, :, :])
+                np.save(self.save_transformed_path + "/" + ID.split('/')[-1] + '_heatmap30x40_transformed.npy', y2[i, :, :, :])
+                    
             
         return X, y1, y2, kp

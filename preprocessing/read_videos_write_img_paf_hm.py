@@ -16,7 +16,7 @@ from skimage.transform import resize, pyramid_reduce
 from py_eggnog_server.py_eggnog_heatmapper import Heatmapper
 from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, TransformationParams
 
-# for augnmentation
+# for augmentation
 from py_eggnog_server.py_eggnog_transformer import Transformer, AugmentSelection
 
 
@@ -24,12 +24,10 @@ np.set_printoptions(threshold=np.nan)
 
 
 # global variables
-eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"  # for testing this python file
-n_aug_per_image = 5
-
-# eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
+# eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/"  # for testing this python file
+eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
 # eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_s123/"  # for s01, s02, s03
-
+n_aug_per_image = 5
 
 ### ********** ###
 process_s010203 = False
@@ -597,7 +595,7 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
     
     container = av.open(video_path)
     for k, fr in enumerate(container.decode(video=0)):
-        ### print("k ==========================", k)
+        # print("frame k ==========================", k)
         assert(k == fr.index)
         nearest_idx, nearest_time = find_nearest_frameindex_from_skeleton_file(rgb_skeleton_data[...,0], frame_time_dict[k]) # take column 0 (time) from rgb data
        
@@ -643,7 +641,7 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                     ################################
                     # save augmented (transformed) images and their ground truths
                     for a in range(n_aug_per_image):
-                        ### print("a", a)
+                        # print("aug index", a)
 #                         X = np.empty((EggnogGlobalConfig.height, EggnogGlobalConfig.width, 3), dtype=np.uint8)
                         # print(type(X), X.dtype)  # uint8
 #                         y1 = np.empty((EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.n_paf))
@@ -665,11 +663,11 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                         
                         # print(type(X), X.dtype, X.astype(np.uint8).dtype) # <class 'numpy.ndarray'> float64 uint8 
                         # use astype to convert from float64 to uint8 
-                        skimage.io.imsave(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_240x320_" + str(a) + ".jpg"), X.astype(np.uint8))
+                        skimage.io.imsave(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_aug_" + str(a) + "_240x320.jpg"), X.astype(np.uint8))
                         
-                        np.save(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_paf30x40_" + str(a) + ".npy"), y1)  # pafs
+                        np.save(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_aug_" + str(a) + "_paf30x40.npy"), y1)  # pafs
                         
-                        np.save(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_heatmap30x40_" + str(a) + ".npy"), y2)  # heatmaps
+                        np.save(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_aug_" + str(a) + "_heatmap30x40.npy"), y2)  # heatmaps
                         
                     ################################
                     

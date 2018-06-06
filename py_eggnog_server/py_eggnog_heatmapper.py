@@ -276,9 +276,9 @@ class Heatmapper:
                     index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
                 
             if kpn == 0:
-                heatmap = self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]))   # transform from image space to ground truth space
+                heatmap = self.get_heatmap_v1(index_array, self.kpx_kpy_transformer([kpx, kpy]))   # transform from image space to ground truth space
             else:
-                heatmap = np.dstack(( heatmap, self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy])) ))
+                heatmap = np.dstack(( heatmap, self.get_heatmap_v1(index_array, self.kpx_kpy_transformer([kpx, kpy])) ))
             # print("heatmap.shape =", heatmap.shape)
             
         # generate background heatmap
@@ -298,11 +298,11 @@ class Heatmapper:
                         index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
                 
             if n == 0:
-                paf = self.get_pafx_pafy(index_array, 
+                paf = self.get_pafx_pafy_v1(index_array, 
                                     kp0xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
                                     kp1xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]))
             else:
-                paf = np.dstack(( paf,  self.get_pafx_pafy(index_array, 
+                paf = np.dstack(( paf,  self.get_pafx_pafy_v1(index_array, 
                                 kp0xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
                                 kp1xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]))
                                 ))

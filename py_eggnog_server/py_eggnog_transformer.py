@@ -26,7 +26,16 @@ def keypoint_transform_to_240x320_image(kp, flip):
     return kp
     
 
-
+def check_if_out_of_the_frame(kpx, kpy):
+        """
+        Tracking info is updated according to the return value of this method. 
+        """
+        if kpx < 0 or kpx > EggnogGlobalConfig.width or kpy < 0 or kpy > EggnogGlobalConfig.height:
+            return True
+        else:
+            return False
+        
+        
 class AugmentSelection:
 
     def __init__(self, flip=False, degree = 0.0, crop = (0,0), scale = 1.0):
@@ -117,6 +126,12 @@ class Transformer:
 
     @staticmethod
     def transform(img, kp, kp_tracking_info, aug=AugmentSelection.random()):
+        """
+        kp: shape (38, 1)
+        M: (2, 3)
+        kp_converted.shape (1, 19, 2)
+        kp_original shape (1, 19, 3)
+        """
 #         print("in class transform", img.shape, label_paf.shape, label_hm.shape, kp.shape)
 #         print("img before", img[200][200][:])
     
@@ -144,17 +159,19 @@ class Transformer:
         kp_original = np.append(kp.reshape((1, EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_axis)), 
                                np.ones((1, EggnogGlobalConfig.n_kp, 1)),
                                axis = 2)  # third column is made all 1s because we want to multiply by affine mat M
+        # kp_original shape (1, 19, 3)
         
-        kp_converted = np.matmul(M, kp_original.transpose([0,2,1])).transpose([0,2,1])
+        kp_converted = np.matmul(M, kp_original.transpose([0,2,1])).transpose([0,2,1])  # kp_converted.shape (1, 19, 2)
+
         
-        ######### TODO
-        # kp_tracking_info is updated if kp falls beyond the image w or h
-        #########
+        ######### TODO Verify
+        # kp_tracking_info is updated to UNTRACKED (0) if kp falls beyond the image w or h
+        for n in range(len(kp_tracking_info)):
+            if check_if_out_of_the_frame(kp_converted[0][n][0], kp_converted[0][n][1]):  # passing x and y
+                kp_tracking_info[n] = 0
+                print("transformed kp is out of the frame, setting tacking info to UNTRACKED (0) for kp index", n)
         
 #         print("img, M shapes", img.shape, M, M.shape)  # (240, 320, 3) (2, 3)
-#         cv2.imshow("before transform", img)
-#         cv2.waitKey(0)
-        
         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.width, EggnogGlobalConfig.height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
         
 
