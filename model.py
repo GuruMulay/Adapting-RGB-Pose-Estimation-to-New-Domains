@@ -8,12 +8,12 @@ from keras.regularizers import l2
 from keras.initializers import random_normal, constant
 import numpy as np
 
-# stages = 6 # removed for only 1 staged model testing on eggnog
-# # original cpm with COCO
+# stages = 6  # removed for only 1 staged model testing on eggnog
+# original cpm with COCO
 # np_branch1 = 38
 # np_branch2 = 19
 
-# # modified cpm with EGGNOG
+# modified cpm with EGGNOG
 np_branch1 = 36
 np_branch2 = 20
 
@@ -75,24 +75,43 @@ def vgg_block(x, weight_decay):
     return x
 
 
+# def stage1_block(x, num_p, branch, weight_decay):  # names from gh repo
+#     # Block 1
+#     x = conv(x, 128, 3, "Mconv1_stage1_L%d" % branch, (weight_decay, 0))  # Assign_40
+#     x = relu(x)
+#     x = conv(x, 128, 3, "Mconv2_stage1_L%d" % branch, (weight_decay, 0))  # _36
+#     x = relu(x)
+#     x = conv(x, 128, 3, "Mconv3_stage1_L%d" % branch, (weight_decay, 0))  # _32
+#     x = relu(x)
+#     x = conv(x, 512, 1, "Mconv4_stage1_L%d" % branch, (weight_decay, 0))  # _28
+#     x = relu(x)
+#     x = conv(x, num_p, 1, "Mconv5_stage1_L%d_EGGNOG" % branch, (weight_decay, 0))  # _26
+
+#     return x
+
+
+# using for warm-starting prototype. The following names match with model.h5 file's names.
 def stage1_block(x, num_p, branch, weight_decay):
     # Block 1
-    x = conv(x, 128, 3, "Mconv1_stage1_L%d" % branch, (weight_decay, 0))  # Assign_40
+    x = conv(x, 128, 3, "conv5_1_CPM_L%d" % branch, (weight_decay, 0))  # Assign_40
     x = relu(x)
-    x = conv(x, 128, 3, "Mconv2_stage1_L%d" % branch, (weight_decay, 0))  # _36
+    x = conv(x, 128, 3, "conv5_2_CPM_L%d" % branch, (weight_decay, 0))  # _36
     x = relu(x)
-    x = conv(x, 128, 3, "Mconv3_stage1_L%d" % branch, (weight_decay, 0))  # _32
+    x = conv(x, 128, 3, "conv5_3_CPM_L%d" % branch, (weight_decay, 0))  # _32
     x = relu(x)
-    x = conv(x, 512, 1, "Mconv4_stage1_L%d" % branch, (weight_decay, 0))  # _28
+    x = conv(x, 512, 1, "conv5_4_CPM_L%d" % branch, (weight_decay, 0))  # _28
     x = relu(x)
-    x = conv(x, num_p, 1, "Mconv5_stage1_L%d_EGGNOG" % branch, (weight_decay, 0))  # _26
+    x = conv(x, num_p, 1, "conv5_5_CPM_L%d_EGGNOG" % branch, (weight_decay, 0))  # _26
 
     return x
 
+"""
+Renamed 1st conv layer in following method (for stage 2 onwards) because original paper has 128 (from VGG) + 38 (pafs) + 19 (hms) = 185 chanelled image (46x46) at the end of stage 1 or even stage n. So the saved weights for this conv layer has a shape of [128, 185, 7, 7] when loaded using load_weights(by_name=True). With eggnog dataset n_channels at the end of stage 1 or stage n is 128 (from VGG) + 36 (pafs) + 20 (hms) = 184 or less depending on the branch_flag [branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)]. Therefore, the original weights from model.h5 for 1st conv layer at each stage (>1) cannot be loaded into this modified eggnog weights which are shaped (184, 128, 7, 7). So, we need to rename these layers to avoid loading the weights by name.
+"""
 
 def stageT_block(x, num_p, stage, branch, weight_decay):
     # Block 1
-    x = conv(x, 128, 7, "Mconv1_stage%d_L%d_E" % (stage, branch), (weight_decay, 0))  # _24
+    x = conv(x, 128, 7, "Mconv1_stage%d_L%d_EGGNOG" % (stage, branch), (weight_decay, 0))  # _24
     x = relu(x)
     x = conv(x, 128, 7, "Mconv2_stage%d_L%d" % (stage, branch), (weight_decay, 0))
     x = relu(x)
@@ -118,6 +137,90 @@ def apply_mask(x, mask1, mask2, num_p, stage, branch):
     else:
         assert False, "wrong number of layers num_p=%d " % num_p
     return w
+
+
+def get_training_model_eggnog_v1(weight_decay, gpus=None, stages=6, branch_flag=0):
+    """
+    This model has an additional flag for heatmap only network architecture 
+    """
+    img_input_shape = (None, None, 3)
+    # to print the shapes at the output of every layer
+    # img_input_shape = (240, 320, 3)
+
+    inputs = []
+    outputs = []
+
+    img_input = Input(shape=img_input_shape)
+    inputs.append(img_input)  # unncessary, but used to append inputs and feed them to Model() class down below
+
+    img_normalized = Lambda(lambda x: x / 256 - 0.5)(img_input)  # [-0.5, 0.5]
+
+    # VGG
+    stage0_out = vgg_block(img_normalized, weight_decay)
+
+    if branch_flag == 2:  # heatmaps only
+        # stage 1 - branch 2 (confidence maps)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay)
+
+        x = Concatenate()([stage1_branch2_out, stage0_out])
+        
+        outputs.append(stage1_branch2_out)
+        
+        # stage sn >= 2
+        for sn in range(2, stages + 1):
+            # stage SN - branch 2 (confidence maps)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay)
+
+            outputs.append(stageT_branch2_out)
+
+            if (sn < stages):
+                x = Concatenate()([stageT_branch2_out, stage0_out])
+                
+    elif branch_flag == 0:  # both heatmap and pafs   
+        # stage 1 - branch 1 (PAF)
+        stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, weight_decay)
+
+        # stage 1 - branch 2 (confidence maps)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay)
+
+        x = Concatenate()([stage1_branch1_out, stage1_branch2_out, stage0_out])
+
+        outputs.append(stage1_branch1_out)
+        outputs.append(stage1_branch2_out)
+
+        # stage sn >= 2
+        for sn in range(2, stages + 1):
+            # stage SN - branch 1 (PAF)
+            stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, weight_decay)
+            # don't have to apply masks becuase eggnog has everything labeled and only one person per frame
+            # w1 = apply_mask(stageT_branch1_out, vec_weight_input, heat_weight_input, np_branch1, sn, 1)
+
+            # stage SN - branch 2 (confidence maps)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay)
+            # don't have to apply masks becuase eggnog has everything labeled and only one person per frame
+            # w2 = apply_mask(stageT_branch2_out, vec_weight_input, heat_weight_input, np_branch2, sn, 2)
+
+            # don't have to apply masks becuase eggnog has everything labeled and only one person per frame
+            # outputs.append(w1)
+            # outputs.append(w2)
+
+            outputs.append(stageT_branch1_out)
+            outputs.append(stageT_branch2_out)
+
+            if (sn < stages):
+                x = Concatenate()([stageT_branch1_out, stageT_branch2_out, stage0_out])
+
+    else:
+        raise NotImplementedError()
+        
+    if gpus is None:
+        model = Model(inputs=inputs, outputs=outputs)
+    else:
+        import tensorflow as tf
+        with tf.device('/cpu:0'): #this model will not be actually used, it's template
+            model = Model(inputs=inputs, outputs=outputs)
+
+    return model
 
 
 def get_training_model_eggnog(weight_decay, gpus=None, stages=6):
@@ -199,8 +302,69 @@ def get_training_model_eggnog(weight_decay, gpus=None, stages=6):
     return model
 
 
-# this one is for COCO dataset
 def get_training_model(weight_decay, gpus=None, stages=6):
+
+    img_input_shape = (None, None, 3)
+    vec_input_shape = (None, None, 38)
+    heat_input_shape = (None, None, 19)
+
+    inputs = []
+    outputs = []
+
+    img_input = Input(shape=img_input_shape)
+    vec_weight_input = Input(shape=vec_input_shape)
+    heat_weight_input = Input(shape=heat_input_shape)
+
+    inputs.append(img_input)
+    inputs.append(vec_weight_input)
+    inputs.append(heat_weight_input)
+
+    img_normalized = Lambda(lambda x: x / 256 - 0.5)(img_input)  # [-0.5, 0.5]
+
+    # VGG
+    stage0_out = vgg_block(img_normalized, weight_decay)
+
+    # stage 1 - branch 1 (PAF)
+    stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, weight_decay)
+    w1 = apply_mask(stage1_branch1_out, vec_weight_input, heat_weight_input, np_branch1, 1, 1)
+
+    # stage 1 - branch 2 (confidence maps)
+    stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay)
+    w2 = apply_mask(stage1_branch2_out, vec_weight_input, heat_weight_input, np_branch2, 1, 2)
+
+    x = Concatenate()([stage1_branch1_out, stage1_branch2_out, stage0_out])
+
+    outputs.append(w1)
+    outputs.append(w2)
+
+    # stage sn >= 2
+    for sn in range(2, stages + 1):
+        # stage SN - branch 1 (PAF)
+        stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, weight_decay)
+        w1 = apply_mask(stageT_branch1_out, vec_weight_input, heat_weight_input, np_branch1, sn, 1)
+
+        # stage SN - branch 2 (confidence maps)
+        stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay)
+        w2 = apply_mask(stageT_branch2_out, vec_weight_input, heat_weight_input, np_branch2, sn, 2)
+
+        outputs.append(w1)
+        outputs.append(w2)
+
+        if (sn < stages):
+            x = Concatenate()([stageT_branch1_out, stageT_branch2_out, stage0_out])
+
+    if gpus is None:
+        model = Model(inputs=inputs, outputs=outputs)
+    else:
+        import tensorflow as tf
+        with tf.device('/cpu:0'):  # this model will not be actually used, it's template
+            model = Model(inputs=inputs, outputs=outputs)
+
+    return model
+
+
+# this one is for COCO dataset
+def get_training_model(weight_decay, gpus=None):
 
     img_input_shape = (None, None, 3)
     vec_input_shape = (None, None, 38)

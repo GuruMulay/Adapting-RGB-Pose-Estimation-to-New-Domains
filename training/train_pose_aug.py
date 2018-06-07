@@ -29,7 +29,6 @@ With this version:
 Data can be read and augmented on-the-fly. 
 Data can be read from *_augmented directories.
 
-
 """
 
 #g
@@ -39,6 +38,7 @@ n_stages = 2
 train_in_finetune_mode = True
 preload_vgg = True
 split_sessionwise = True  # e.g., s04 for training s07 for validation; OR split train and val sessionwise, 70% session for train and 30% session for val
+branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only) 
 
 
 # stores train and val data
@@ -53,7 +53,7 @@ partition_dict = {}
 
 # sessionwise split
 if split_sessionwise:
-    train_sessions = ['s04'] # ['s01', 's02', 's03', 's04', 's05']
+    train_sessions = ['s04']  # ['s01', 's02', 's03', 's04', 's05']
     val_sessions = ['s06']
     
     # only take 1/div_factor fraction of data
@@ -84,6 +84,7 @@ stepsize = 10000*17 # in original code each epoch is 121746 and step change is o
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
+
 os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
 
 BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0607180130pm/training/"
@@ -111,7 +112,7 @@ def get_last_epoch_and_weights_file():
     return None, None
 
 
-model = get_training_model_eggnog(weight_decay, gpus=use_multiple_gpus, stages=n_stages)
+model = get_training_model_eggnog(weight_decay, gpus=use_multiple_gpus, stages=n_stages)  #, branch_flag=branch_flag)
 
 
 # if verbose_print:
@@ -141,10 +142,12 @@ if wfile is not None:
     last_epoch = last_epoch + 1
 
 elif train_in_finetune_mode:  # load both cpm and vgg19 weights
-    print("Loading the original CPM weights...")
-    cpm_weights_path = "../model/keras/weights.0021.h5"  # original weights converted from caffe
+    print("Fine tune mode (warm starting weights) ============================= ")
+    cpm_weights_path = "../model/keras/model.h5"  # original weights converted from caffe
     model.load_weights(cpm_weights_path, by_name=True)  # only load everything except the final C blocks at every stage
-
+    print("Loading the original CPM weights...", cpm_weights_path)
+    last_epoch = 0
+    
 elif not preload_vgg:
     print("NOT loading vgg19 weights...")
     last_epoch = 0
@@ -158,7 +161,6 @@ else:  # only load vgg19 weights
             vgg_layer_name = from_vgg[layer.name]  # the 'block1_conv1' name from original VGG nomenclature
             layer.set_weights(vgg_model.get_layer(vgg_layer_name).get_weights())
             print("Loaded VGG19 layer: " + vgg_layer_name)
-
     last_epoch = 0
 
     
