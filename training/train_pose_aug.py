@@ -35,8 +35,8 @@ Data can be read from *_augmented directories.
 #g
 verbose_print = True
 
-n_stages = 1
-train_in_finetune_mode = False
+n_stages = 2
+train_in_finetune_mode = True
 preload_vgg = True
 split_sessionwise = True  # e.g., s04 for training s07 for validation; OR split train and val sessionwise, 70% session for train and 30% session for val
 
@@ -53,12 +53,12 @@ partition_dict = {}
 
 # sessionwise split
 if split_sessionwise:
-    train_sessions = ['s01']
-    val_sessions = ['s02']
+    train_sessions = ['s04'] # ['s01', 's02', 's03', 's04', 's05']
+    val_sessions = ['s06']
     
     # only take 1/div_factor fraction of data
     div_factor_train = 10
-    div_factor_val = 70
+    div_factor_val = 35
     div_factor_aug = 5  # there are 5 versions of every frame after augmentation (_0, 1, 2, 3, 4.jpg) 
     
     print("train_sessions", train_sessions)
@@ -84,9 +84,9 @@ stepsize = 10000*17 # in original code each epoch is 121746 and step change is o
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0606180100pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0607180130pm/training/"
 print("creating a directory", BASE_DIR)
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
