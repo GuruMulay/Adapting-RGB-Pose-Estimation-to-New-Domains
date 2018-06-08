@@ -5,7 +5,7 @@ import re
 import math
 sys.path.append("..")
 
-from model import get_training_model_eggnog
+from model import get_training_model_eggnog_v1
 from dataset_gen import DataGenerator  #g
 from optimizers import MultiSGD
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint, CSVLogger, TensorBoard, TerminateOnNaN
@@ -35,10 +35,10 @@ Data can be read from *_augmented directories.
 verbose_print = True
 
 n_stages = 2
-train_in_finetune_mode = True
+train_in_finetune_mode = False
 preload_vgg = True
 split_sessionwise = True  # e.g., s04 for training s07 for validation; OR split train and val sessionwise, 70% session for train and 30% session for val
-branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only) 
+branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only) 
 
 
 # stores train and val data
@@ -73,6 +73,9 @@ print("train_in_finetune_mode", train_in_finetune_mode)
 print("preload_vgg", preload_vgg)
 print("split_sessionwise", split_sessionwise)
 print("n_stages", n_stages)
+print("branch_flag: [1 => branch L1 only; 2 => branch L2 only (heatmaps only)] ======", branch_flag)
+print("------------------ Flags ----------------------------")
+
 
 batch_size = 5
 base_lr = 1e-5
@@ -87,7 +90,7 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0607180130pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0607180300pm/training/"
 print("creating a directory", BASE_DIR)
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
@@ -112,8 +115,7 @@ def get_last_epoch_and_weights_file():
     return None, None
 
 
-model = get_training_model_eggnog(weight_decay, gpus=use_multiple_gpus, stages=n_stages)  #, branch_flag=branch_flag)
-
+model = get_training_model_eggnog_v1(weight_decay, gpus=use_multiple_gpus, stages=n_stages, branch_flag=branch_flag)
 
 # if verbose_print:
 #     print("model summary ====================================================== ", model.summary())
@@ -215,6 +217,7 @@ params = {'data_path': eggnog_dataset_path,
           'hm_height': 30,
           'hm_width': 40,
           'hm_n_channels': 20,
+          'branch_flag': branch_flag,
           'save_transformed_path': None
          }
 # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r2/'

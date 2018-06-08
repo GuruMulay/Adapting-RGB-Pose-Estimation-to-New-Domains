@@ -16,7 +16,7 @@ class DataGenerator(object):
     def __init__(self, data_path, height = 240, width = 320, n_channels = 3, batch_size = 5,
                  paf_height = 30, paf_width = 40, paf_n_channels = 36,
                  hm_height = 30, hm_width = 40, hm_n_channels = 20,
-                 mode = "",
+                 branch_flag = 0,
                  save_transformed_path = None):
         
         'Initialization'
@@ -35,6 +35,8 @@ class DataGenerator(object):
         self.hm_height = hm_height
         self.hm_width = hm_width
         self.hm_n_channels = hm_n_channels
+        
+        self.branch_flag = branch_flag
         
         self.save_transformed_path = save_transformed_path  # used to save the transformed images in this path if it is not null
 #         print("===== self.save_transformed_path", self.save_transformed_path)
@@ -87,8 +89,16 @@ class DataGenerator(object):
                         [y1] = (batch_size, height (30), width (40), 36) pafs
                         [y2] = (batch_size, height (30), width (40), 20) heatmaps
                 """
+                
+                # following is inefficient for one-branched networks because we read both y1 and y2 even if we want to use only one of them
+                if self.branch_flag == 2:
+                    yield [X], [y2] * n_stages
+
+                elif self.branch_flag == 1:
+                    yield [X], [y1] * n_stages
                     
-                yield [X], [y1, y2] * n_stages
+                else:
+                    yield [X], [y1, y2] * n_stages
         
         
     def transform_data_v1(self, img, kp, augment):
