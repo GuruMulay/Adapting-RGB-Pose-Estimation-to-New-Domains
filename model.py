@@ -8,14 +8,17 @@ from keras.regularizers import l2
 from keras.initializers import random_normal, constant
 import numpy as np
 
+from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig
+
 # stages = 6  # removed for only 1 staged model testing on eggnog
 # original cpm with COCO
 # np_branch1 = 38
 # np_branch2 = 19
 
 # modified cpm with EGGNOG
-np_branch1 = 36
-np_branch2 = 20
+# DOES NOT work here because the n_hm and n_paf are not updated as per update function in train_*.py main file
+# np_branch1 = EggnogGlobalConfig.n_paf
+# np_branch2 = EggnogGlobalConfig.n_hm
 
 def relu(x): return Activation('relu')(x)
 
@@ -143,6 +146,16 @@ def get_training_model_eggnog_v1(weight_decay, gpus=None, stages=6, branch_flag=
     """
     This model has an additional flag for heatmap only network architecture 
     """
+    np_branch1 = EggnogGlobalConfig.n_paf
+    np_branch2 = EggnogGlobalConfig.n_hm
+    
+    print("np_branch1, np_branch2", np_branch1, np_branch2)
+    print("Updated joint info:")
+    print("Final EggnogGlobalConfig.joint_indices", EggnogGlobalConfig.joint_indices)
+    print("Final EggnogGlobalConfig.paf_pairs_indices", EggnogGlobalConfig.paf_pairs_indices)
+    print("Final EggnogGlobalConfig.paf_indices", EggnogGlobalConfig.paf_indices_xy)
+    print("EggnogGlobalConfig.n_kp, n_hm, n_paf", EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_hm, EggnogGlobalConfig.n_paf)
+
     img_input_shape = (None, None, 3)
     # to print the shapes at the output of every layer
     # img_input_shape = (240, 320, 3)

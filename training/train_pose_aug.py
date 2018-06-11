@@ -21,6 +21,7 @@ import random
 from keras.backend import shape, int_shape
 import pprint
 
+from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig
 
 """
 NOTE:
@@ -31,14 +32,52 @@ Data can be read from *_augmented directories.
 
 """
 
+remove_joints = [7, 11, 15, 16, 17, 18]
+
+def update_config_as_per_removed_joints():
+    # update the config class instance
+    rm_pairs = []
+    rm_paf_xy = []
+    
+    for j in remove_joints:
+        EggnogGlobalConfig.joint_indices.remove(j)
+
+    EggnogGlobalConfig.n_hm = len(EggnogGlobalConfig.joint_indices)
+    EggnogGlobalConfig.n_kp = len(EggnogGlobalConfig.joint_indices) - 1
+
+    for p, pair in enumerate(EggnogGlobalConfig.paf_pairs_indices):  # 18
+        if pair[0] in remove_joints or pair[1] in remove_joints:
+            rm_pairs.append(pair)
+            rm_paf_xy.append(2*p)  # add x paf map index to remove list
+            rm_paf_xy.append(2*p+1)  # add y paf map index to remove list
+            # following this way becasue you cannot do ".remove" on a list while enumerating over it.
+    
+    for rm in rm_pairs:
+        EggnogGlobalConfig.paf_pairs_indices.remove(rm)
+    for rm in rm_paf_xy:
+        EggnogGlobalConfig.paf_indices_xy.remove(rm)
+
+    
+    EggnogGlobalConfig.n_paf = len(EggnogGlobalConfig.paf_pairs_indices)*2
+    assert(len(EggnogGlobalConfig.paf_indices_xy) == EggnogGlobalConfig.n_paf)
+    
+    print("Updated joint info:")
+    print("Final EggnogGlobalConfig.joint_indices", EggnogGlobalConfig.joint_indices)
+    print("Final EggnogGlobalConfig.paf_pairs_indices", EggnogGlobalConfig.paf_pairs_indices)
+    print("Final EggnogGlobalConfig.paf_indices", EggnogGlobalConfig.paf_indices_xy)
+    print("EggnogGlobalConfig.n_kp, n_hm, n_paf", EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_hm, EggnogGlobalConfig.n_paf)
+
+    
 #g
 verbose_print = True
+
+update_config_as_per_removed_joints()
 
 n_stages = 2
 train_in_finetune_mode = False
 preload_vgg = True
 split_sessionwise = True  # e.g., s04 for training s07 for validation; OR split train and val sessionwise, 70% session for train and 30% session for val
-branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only) 
+branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only) 
 
 
 # stores train and val data
@@ -51,15 +90,36 @@ partition_dict = {}
 # as key + '_heatmap240.npy' and key + '_paf240.npy'
 
 
+##### ========================================= #####
+### train
+# without
+# ['s01', 's02', 's03', 's04', 's05', 's16', 's20']
+# with
+# ['s08', 's09', 's10', 's11', 's12', 's17', 's21']
+
+### validation
+# without
+# ['s06', 's07']
+# with
+# ['s14', 's15']
+
+### test
+# without
+# ['s18']
+# with
+# ['s19']
+##### ========================================= #####
+
+
 # sessionwise split
 if split_sessionwise:
-    train_sessions = ['s04']  # ['s01', 's02', 's03', 's04', 's05']
-    val_sessions = ['s06']
+    train_sessions = ['s01', 's02', 's03', 's08', 's09', 's10']
+    val_sessions = ['s06', 's07']
     
     # only take 1/div_factor fraction of data
     div_factor_train = 10
     div_factor_val = 35
-    div_factor_aug = 5  # there are 5 versions of every frame after augmentation (_0, 1, 2, 3, 4.jpg) 
+    div_factor_aug = 3  # there are 5 versions of every frame after augmentation (_0, 1, 2, 3, 4.jpg) 
     
     print("train_sessions", train_sessions)
     print("val_sessions", val_sessions)
@@ -82,15 +142,15 @@ base_lr = 1e-5
 momentum = 0.9
 weight_decay = 2e-5
 lr_policy = "step"
-gamma = 0.333
-stepsize = 10000*17 # in original code each epoch is 121746 and step change is on 17th epoch
+gamma = 0.9  # originally 0.333
+stepsize = 10000*17  # in original code each epoch is 121746 and step change is on 17th epoch
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/eggnog_preprocessing/0607180300pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/lesser_joints/0610180357pm/training/"
 print("creating a directory", BASE_DIR)
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
@@ -213,14 +273,15 @@ params = {'data_path': eggnog_dataset_path,
           'batch_size': batch_size,
           'paf_height': 30,
           'paf_width': 40,
-          'paf_n_channels': 36,
+          'paf_n_channels': EggnogGlobalConfig.n_paf,
           'hm_height': 30,
           'hm_width': 40,
-          'hm_n_channels': 20,
+          'hm_n_channels': EggnogGlobalConfig.n_hm,
           'branch_flag': branch_flag,
           'save_transformed_path': None
          }
 # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r2/'
+# '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r3/'
 
 
 def prepare_train_val_data_dict_offline_version():
@@ -292,7 +353,7 @@ val_samples = len(partition_dict['val'])  # 30  # 2476  len(partition_dict['val'
 # For eggnog full/5 => partition dict train and val len 88334 29879
 
 
-# learning rate schedule - equivalent of caffe lr_policy =  "step"
+# learning rate schedule - equivalent of caffe lr_policy = "step"
 iterations_per_epoch = train_samples // batch_size
 
 def step_decay(epoch):

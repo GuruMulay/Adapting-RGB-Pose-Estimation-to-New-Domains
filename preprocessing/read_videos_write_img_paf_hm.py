@@ -199,7 +199,7 @@ def load_skeleton_data_for_video_v1(video_file_path):
                                             225,226,227  # ThumbRight 18
                                            ))
     
-    assert(xyz_skeleton_data.shape[1] == 58) # 19 joints * 3 (x,y,z) + 1 (time)
+    assert(xyz_skeleton_data.shape[1] == 58)  # 19 joints * 3 (x,y,z) + 1 (time)
     print("xyz_skeleton_data.shape", xyz_skeleton_data.shape)
     
 #     rgb_skeleton_data = np.loadtxt(video_file_path[:-9] + 'RGBSkeleton.txt', dtype='float', delimiter=',', skiprows=1, 

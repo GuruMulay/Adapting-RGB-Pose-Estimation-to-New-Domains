@@ -31,7 +31,11 @@ class EggnogGlobalConfig:
                     [8, 14], [9, 8], [10, 9], [11, 10], [17, 11], [18, 10],
                     [14, 2], [2, 3]
                     ]
+    # useful when loading the numpy files in the generator
+    paf_indices_xy = [p for p in range(2*len(paf_pairs_indices))]
+    # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, ...., 34, 35]
     
+    joint_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     
     # haven't used following
     parts = ["nose", "neck", "Rsho", "Relb", "Rwri", "Lsho", "Lelb", "Lwri", "Rhip", "Rkne", "Rank", "Lhip", "Lkne", "Lank", "Reye", "Leye", "Rear", "Lear"]

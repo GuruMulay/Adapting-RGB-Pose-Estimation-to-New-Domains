@@ -7,6 +7,10 @@ import skimage.io
 from py_eggnog_server.py_eggnog_transformer import Transformer, AugmentSelection
 from py_eggnog_server.py_eggnog_heatmapper import Heatmapper
 
+import sys
+sys.path.append("..")
+from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig
+
 """
 https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly.html
 """
@@ -146,6 +150,7 @@ class DataGenerator(object):
 
     
     def __data_generation_online(self, file_IDs_temp, augment, mode):
+        raise  NotImplementedError("This method needs to be updated for the joint removal option in the main file.")
         'Generates data of batch_size samples' 
         # X: (n_samples == batch_size, height (240), width (320), n_channels (3) (rgb or bgr))
         
@@ -248,9 +253,19 @@ class DataGenerator(object):
             # load stored, augmented images and ground truth
             X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))
             # print("img shape (h, w, c)", img.shape)  # height, width, channels (rgb)
+            
             # Stored ground truths
-            y1[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'))
-            y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'))
+            paf_temp = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'), mmap_mode='r')
+            hm_temp = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'), mmap_mode='r')
+            
+            ## BUG FIX: Final -1 background heatmap needs to be updated for these set of joints
+            hm_no_bk = hm_temp[:, :, EggnogGlobalConfig.joint_indices[:-1]]  # slice the loaded array using updated joint indices minus the background hm and # generate background heatmap
+            
+            y1[i, :, :, :] = paf_temp[:, :, EggnogGlobalConfig.paf_indices_xy]  # slice the loaded array using updated paf indices
+            y2[i, :, :, :] = np.dstack(( hm_no_bk, (1 - np.max(hm_no_bk[:,:,:], axis=2)) ))
+            
+            # y1[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'))
+            # y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'))
             kp = None  # no need to read kp because it's not used after this line
 
             # save transformed 
