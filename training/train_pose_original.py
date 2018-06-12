@@ -30,14 +30,14 @@ stepsize = 50000*17  # 121746*17  # in original code each epoch is 121746 and st
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
 
 # testing eggnog with only n stages
 n_stages = 2
+use_eggnong_common_joints = True 
 
-
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/0611180230pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/0612180230pm/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 print("base dir ========================", BASE_DIR)
 WEIGHTS_SAVE = 'weights.{epoch:04d}.h5'
@@ -142,11 +142,11 @@ def eucl_loss(x, y):
 train_client = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
 val_client = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
 
-train_di = train_client.gen(n_stages)
+train_di = train_client.gen(n_stages, use_eggnong_common_joints)
 print("train_di", type(train_di),)
-train_samples = 50000  # 117576  # 100  # 
-val_di = val_client.gen(n_stages)
-val_samples = 2476  # 30  # 
+train_samples = 10000  # 117576  # 100  # 
+val_di = val_client.gen(n_stages, use_eggnong_common_joints)
+val_samples = 1000 # 2476  # 30  # 
 print("val_di", type(val_di),)
 
 

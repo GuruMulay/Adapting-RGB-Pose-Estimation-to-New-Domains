@@ -12,8 +12,8 @@ from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig
 
 # stages = 6  # removed for only 1 staged model testing on eggnog
 # original cpm with COCO
-np_branch1 = 38
-np_branch2 = 19
+np_branch1 = 18  # 18 (keeping only common joints and paf pairs) # 38
+np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
 
 # modified cpm with EGGNOG
 # DOES NOT work here because the n_hm and n_paf are not updated as per update function in train_*.py main file
@@ -318,8 +318,8 @@ def get_training_model_eggnog(weight_decay, gpus=None, stages=6):
 def get_training_model(weight_decay, gpus=None, stages=6):
 
     img_input_shape = (None, None, 3)
-    vec_input_shape = (None, None, 38)
-    heat_input_shape = (None, None, 19)
+    vec_input_shape = (None, None, np_branch1)
+    heat_input_shape = (None, None, np_branch2)
 
     inputs = []
     outputs = []

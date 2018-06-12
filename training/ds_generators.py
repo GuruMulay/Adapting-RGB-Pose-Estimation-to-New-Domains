@@ -3,6 +3,8 @@ import zmq
 from ast import literal_eval as make_tuple
 from py_rmpe_server.py_rmpe_data_iterator import RawDataIterator
 
+from py_rmpe_server.py_rmpe_config import RmpeCommonConfig
+
 import six
 if six.PY3:
   buffer_ = memoryview
@@ -28,7 +30,7 @@ class DataIteratorBase:
         while True:
             yield tuple(self._recv_arrays())
 
-    def gen(self, n_stages):
+    def gen(self, n_stages, use_eggnong_common_joints):
         batches_x, batches_x1, batches_x2, batches_y1, batches_y2 = \
             [None]*self.batch_size, [None]*self.batch_size, [None]*self.batch_size, \
             [None]*self.batch_size, [None]*self.batch_size
@@ -56,7 +58,13 @@ class DataIteratorBase:
             # mask - the same for vec_weights, heat_weights
             vec_weights = np.repeat(mask_img[:,:,np.newaxis], self.vec_num, axis=2)
             heat_weights = np.repeat(mask_img[:,:,np.newaxis], self.heat_num, axis=2)
-
+            
+            # print("masks shapes before common: vec, heat", vec_weights.shape, heat_weights.shape)  #
+            if use_eggnong_common_joints:
+                vec_weights = vec_weights[:, :, RmpeCommonConfig.keep_paf_indices]
+                heat_weights = heat_weights[:, :, RmpeCommonConfig.keep_joint_indices]
+            # print("masks shapes after common: vec, heat", vec_weights.shape, heat_weights.shape)  #
+            
             batches_x1[sample_idx]=vec_weights[np.newaxis, ...]
             batches_x2[sample_idx]=heat_weights[np.newaxis, ...]
 
@@ -65,7 +73,13 @@ class DataIteratorBase:
             vec_label = np.transpose(vec_label, (1, 2, 0))
             heat_label = label[self.split_point:, :, :]
             heat_label = np.transpose(heat_label, (1, 2, 0))
-
+            
+            # print("gt shapes before common: vec, heat", vec_label.shape, heat_label.shape)  # 
+            if use_eggnong_common_joints:
+                vec_label = vec_label[:, :, RmpeCommonConfig.keep_paf_indices]
+                heat_label = heat_label[:, :, RmpeCommonConfig.keep_joint_indices]
+            # print("gt shapes after common: vec, heat", vec_label.shape, heat_label.shape)  #
+            
             batches_y1[sample_idx]=vec_label[np.newaxis, ...]
             batches_y2[sample_idx]=heat_label[np.newaxis, ...]
 

@@ -32,7 +32,10 @@ Data can be read from *_augmented directories.
 
 """
 
-remove_joints = [7, 11, 15, 16, 17, 18]
+# for common set of joints betwenn eggnog and coco
+remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common
+# for removing 6 joints on two hands
+# remove_joints = [7, 11, 15, 16, 17, 18]
 
 def update_config_as_per_removed_joints():
     # update the config class instance
@@ -150,7 +153,7 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/lesser_joints/0610180357pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/lesser_joints/0612180357pm/training/"
 print("creating a directory", BASE_DIR)
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
