@@ -74,7 +74,7 @@ class AugmentSelection:
 
         # order of combination is reversed
         combined = center2center.dot(flip).dot(scale).dot(rotate).dot(center2zero)
-        print("combined shape", combined.shape, "\nCombined", combined)
+        # print("combined shape", combined.shape, "\nCombined", combined)
         return combined[0:2]
 
 class Transformer:
@@ -83,18 +83,18 @@ class Transformer:
     def transform(img, mask, meta, aug=AugmentSelection.random()):
 
         # warp picture and mask
-        print("Before calculating the affine mat M: center, scale_self")
-        print("meta['objpos'][0], meta['scale_provided'][0]", meta['objpos'][0], meta['scale_provided'][0])  # [184.67000000000002, 136.065] 0.29763586956521737
+        # print("Before calculating the affine mat M: center, scale_self")
+        # print("meta['objpos'][0], meta['scale_provided'][0]", meta['objpos'][0], meta['scale_provided'][0])  # [184.67000000000002, 136.065] 0.29763586956521737
 
         M = aug.affine(meta['objpos'][0], meta['scale_provided'][0])
 
         # TODO: need to understand this, scale_provided[0] is height of main person divided by 368, caclulated in generate_hdf5.py
-        print("\nimg (r, c = h, w), mask, M shapes", img.shape, mask.shape, "\nM", M, M.shape)  # (281, 500, 3) (281, 500) (2, 3)
-        cv2.imshow("before transform", img)
-        cv2.waitKey(0)
+        # print("\nimg (r, c = h, w), mask, M shapes", img.shape, mask.shape, "\nM", M, M.shape)  # (281, 500, 3) (281, 500) (2, 3)
+        # cv2.imshow("before transform", img)
+        # cv2.waitKey(0)
         img = cv2.warpAffine(img, M, (RmpeGlobalConfig.height, RmpeGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
-        cv2.imshow("after transform", img)
-        cv2.waitKey(0)
+        # cv2.imshow("after transform", img)
+        # cv2.waitKey(0)
         
         mask = cv2.warpAffine(mask, M, (RmpeGlobalConfig.height, RmpeGlobalConfig.width), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=255)
         mask = cv2.resize(mask, RmpeGlobalConfig.mask_shape, interpolation=cv2.INTER_CUBIC)  # TODO: should be combined with warp for speed
@@ -107,8 +107,8 @@ class Transformer:
         #update: may be we don't need it actually, original code removed part sliced more than half totally, may be we should keep it
         original_points = meta['joints'].copy()
         # original_points can exceed 368 368 pixel bound (this is the transformed image shape)
-        print("original_points.shape", original_points.shape)  # (1, 18, 3)
-        print("original_points", original_points)  # (1, 18, 3)
+        # print("original_points.shape", original_points.shape)  # (1, 18, 3)
+        # print("original_points", original_points)  # (1, 18, 3)
         
         original_points[:,:,2]=1  # we reuse 3rd column in completely different way here, it is hack
         converted_points = np.matmul(M, original_points.transpose([0,2,1])).transpose([0,2,1])
@@ -116,8 +116,8 @@ class Transformer:
         # np.matmul(M, op.transpose([0,2,1])).transpose([0,2,1]).shape (1, 18, 2)
 
 
-        print("converted_points.shape", converted_points.shape)  # (1, 18, 2) 
-        print("converted_points", converted_points)  # (1, 18, 2) 
+        # print("converted_points.shape", converted_points.shape)  # (1, 18, 2) 
+        # print("converted_points", converted_points)  # (1, 18, 2) 
         meta['joints'][:,:,0:2]=converted_points  # only change col 0 and 1; not 2 because it tells about visibility
 
         # we just made image flip, i.e. right leg just became left leg, and vice versa
@@ -128,6 +128,6 @@ class Transformer:
             meta['joints'][:, RmpeGlobalConfig.leftParts, :] = tmpRight
             meta['joints'][:, RmpeGlobalConfig.rightParts, :] = tmpLeft
 
-        print("img, mask, M shapes at return", img.shape, mask.shape, M.shape)
+        # print("img, mask, M shapes at return", img.shape, mask.shape, M.shape)
         return img, mask, meta
 

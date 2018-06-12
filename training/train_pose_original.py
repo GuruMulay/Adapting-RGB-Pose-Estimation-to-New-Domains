@@ -20,7 +20,7 @@ from glob import glob
 #g
 from keras import callbacks
 
-batch_size = 5
+batch_size = 10
 base_lr = 2e-5
 momentum = 0.9
 weight_decay = 5e-4
@@ -28,16 +28,16 @@ lr_policy = "step"
 gamma = 0.333
 stepsize = 50000*17  # 121746*17  # in original code each epoch is 121746 and step change is on 17th epoch
 max_iter = 200
-use_multiple_gpus = None # set None for 1 gpu, not 1
+use_multiple_gpus = None  # set None for 1 gpu, not 1
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 
 # testing eggnog with only n stages
-n_stages = 1
+n_stages = 2
 
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/0510180230pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/0611180230pm/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 print("base dir ========================", BASE_DIR)
 WEIGHTS_SAVE = 'weights.{epoch:04d}.h5'
@@ -139,8 +139,8 @@ def eucl_loss(x, y):
     return l
 
 # prepare generators
-train_client = DataIterator("/s/red/b/nobackup/data/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
-val_client = DataIterator("/s/red/b/nobackup/data/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
+train_client = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
+val_client = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
 
 train_di = train_client.gen(n_stages)
 print("train_di", type(train_di),)

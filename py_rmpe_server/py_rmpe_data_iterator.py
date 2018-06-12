@@ -26,7 +26,7 @@ class RawDataIterator:
         if self.shuffle:
             random.shuffle(keys)
         
-        print("keys len, keys[0:2]", len(keys), keys[0:2])  # keys len, keys[0:2] 117873 ['0111017', '0031207']
+        # print("keys len, keys[0:2]", len(keys), keys[0:2])  # keys len, keys[0:2] 117873 ['0111017', '0031207']
 
         for key in keys:
 
@@ -79,11 +79,11 @@ class RawDataIterator:
 
 #         aug = AugmentSelection.random() if self.augment else AugmentSelection.unrandom()
         aug = AugmentSelection.unrandom()
-        print("transform data: before transform", img.shape)  
+        # print("transform data: before transform", img.shape)  
         # transform data: before transform (427, 640, 3)  # could be any shape
         # transform data: after transform (368, 368, 3)
         img, mask, meta = Transformer.transform(img, mask, meta, aug=aug)
-        print("transform data: after transform img shape ===========", img.shape)
+        # print("transform data: after transform img shape ===========", img.shape)
         labels = self.heatmapper.create_heatmaps(meta['joints'], mask)
 
         return img, mask, meta, labels
