@@ -5,7 +5,7 @@ import re
 import math
 sys.path.append("..")
 
-from model import get_training_model
+from model import get_training_model_common
 # from ds_generators import DataGeneratorClient, DataIterator
 from ds_generators import DataIterator
 from optimizers import MultiSGD
@@ -30,14 +30,21 @@ stepsize = 50000*17  # 121746*17  # in original code each epoch is 121746 and st
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 
 # testing eggnog with only n stages
 n_stages = 2
 use_eggnong_common_joints = True 
+branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/0612180230pm/training/"
+print("------------------ Flags ----------------------------")
+print("n_stages", n_stages)
+print("use_eggnong_common_joints", use_eggnong_common_joints)
+print("branch_flag", branch_flag)
+
+
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/0613180230pm/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 print("base dir ========================", BASE_DIR)
 WEIGHTS_SAVE = 'weights.{epoch:04d}.h5'
@@ -69,7 +76,9 @@ def get_last_epoch_and_weights_file():
         return ep, WEIGHT_DIR + '/' + WEIGHTS_SAVE.format(epoch=ep)
     return None, None
 
-model = get_training_model(weight_decay, gpus=use_multiple_gpus, stages=n_stages)
+
+# model = get_training_model(weight_decay, gpus=use_multiple_gpus, stages=n_stages)
+model = get_training_model_common(weight_decay, gpus=use_multiple_gpus, stages=n_stages, branch_flag=branch_flag)
 
 from_vgg = dict()
 from_vgg['conv1_1'] = 'block1_conv1'
@@ -142,10 +151,10 @@ def eucl_loss(x, y):
 train_client = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
 val_client = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
 
-train_di = train_client.gen(n_stages, use_eggnong_common_joints)
+train_di = train_client.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
 print("train_di", type(train_di),)
 train_samples = 10000  # 117576  # 100  # 
-val_di = val_client.gen(n_stages, use_eggnong_common_joints)
+val_di = val_client.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
 val_samples = 1000 # 2476  # 30  # 
 print("val_di", type(val_di),)
 

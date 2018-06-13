@@ -150,11 +150,11 @@ def get_training_model_eggnog_v1(weight_decay, gpus=None, stages=6, branch_flag=
     np_branch2 = EggnogGlobalConfig.n_hm
     
     print("np_branch1, np_branch2", np_branch1, np_branch2)
-    print("Updated joint info:")
-    print("Final EggnogGlobalConfig.joint_indices", EggnogGlobalConfig.joint_indices)
-    print("Final EggnogGlobalConfig.paf_pairs_indices", EggnogGlobalConfig.paf_pairs_indices)
-    print("Final EggnogGlobalConfig.paf_indices", EggnogGlobalConfig.paf_indices_xy)
-    print("EggnogGlobalConfig.n_kp, n_hm, n_paf", EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_hm, EggnogGlobalConfig.n_paf)
+#     print("Updated joint info:")
+#     print("Final EggnogGlobalConfig.joint_indices", EggnogGlobalConfig.joint_indices)
+#     print("Final EggnogGlobalConfig.paf_pairs_indices", EggnogGlobalConfig.paf_pairs_indices)
+#     print("Final EggnogGlobalConfig.paf_indices", EggnogGlobalConfig.paf_indices_xy)
+#     print("EggnogGlobalConfig.n_kp, n_hm, n_paf", EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_hm, EggnogGlobalConfig.n_paf)
 
     img_input_shape = (None, None, 3)
     # to print the shapes at the output of every layer
@@ -224,7 +224,7 @@ def get_training_model_eggnog_v1(weight_decay, gpus=None, stages=6, branch_flag=
                 x = Concatenate()([stageT_branch1_out, stageT_branch2_out, stage0_out])
 
     else:
-        raise NotImplementedError()
+        raise NotImplementedError("Only paf network is not implemented")
         
     if gpus is None:
         model = Model(inputs=inputs, outputs=outputs)
@@ -374,6 +374,99 @@ def get_training_model(weight_decay, gpus=None, stages=6):
             model = Model(inputs=inputs, outputs=outputs)
 
     return model
+
+
+def get_training_model_common(weight_decay, gpus=None, stages=6, branch_flag=0):
+
+    img_input_shape = (None, None, 3)
+    vec_input_shape = (None, None, np_branch1)
+    heat_input_shape = (None, None, np_branch2)
+    # print("EggnogGlobalConfig.n_kp, n_hm, n_paf", EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_hm, EggnogGlobalConfig.n_paf)
+    print("np_branch1, np_branch2", np_branch1, np_branch2)
+
+    inputs = []
+    outputs = []
+
+    img_input = Input(shape=img_input_shape)
+    vec_weight_input = Input(shape=vec_input_shape)
+    heat_weight_input = Input(shape=heat_input_shape)
+
+    img_normalized = Lambda(lambda x: x / 256 - 0.5)(img_input)  # [-0.5, 0.5]
+
+    # VGG
+    stage0_out = vgg_block(img_normalized, weight_decay)
+
+    if branch_flag == 2:  # heatmaps only
+        inputs.append(img_input)
+        inputs.append(heat_weight_input)
+        
+        # stage 1 - branch 2 (confidence maps)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay)
+        w2 = apply_mask(stage1_branch2_out, vec_weight_input, heat_weight_input, np_branch2, 1, 2)
+        
+        x = Concatenate()([stage1_branch2_out, stage0_out])
+        
+        outputs.append(w2)
+        
+        # stage sn >= 2
+        for sn in range(2, stages + 1):
+            # stage SN - branch 2 (confidence maps)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay)
+            w2 = apply_mask(stageT_branch2_out, vec_weight_input, heat_weight_input, np_branch2, sn, 2)
+            
+            outputs.append(w2)
+
+            if (sn < stages):
+                x = Concatenate()([stageT_branch2_out, stage0_out])
+                
+    elif branch_flag == 0:  # both heatmap and pafs  
+        inputs.append(img_input)
+        inputs.append(vec_weight_input)
+        inputs.append(heat_weight_input)
+    
+        # stage 1 - branch 1 (PAF)
+        stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, weight_decay)
+        w1 = apply_mask(stage1_branch1_out, vec_weight_input, heat_weight_input, np_branch1, 1, 1)
+        
+        # stage 1 - branch 2 (confidence maps)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay)
+        w2 = apply_mask(stage1_branch2_out, vec_weight_input, heat_weight_input, np_branch2, 1, 2)
+        
+        x = Concatenate()([stage1_branch1_out, stage1_branch2_out, stage0_out])
+
+        outputs.append(w1)
+        outputs.append(w2)
+        
+        
+        # stage sn >= 2
+        for sn in range(2, stages + 1):
+            # stage SN - branch 1 (PAF)
+            stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, weight_decay)
+            w1 = apply_mask(stageT_branch1_out, vec_weight_input, heat_weight_input, np_branch1, sn, 1)
+
+            # stage SN - branch 2 (confidence maps)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay)
+            w2 = apply_mask(stageT_branch2_out, vec_weight_input, heat_weight_input, np_branch2, sn, 2)
+
+            outputs.append(w1)
+            outputs.append(w2)
+
+            if (sn < stages):
+                x = Concatenate()([stageT_branch1_out, stageT_branch2_out, stage0_out])
+
+    else:
+        raise NotImplementedError("Only paf network is not implemented")
+        
+        
+    if gpus is None:
+        model = Model(inputs=inputs, outputs=outputs)
+    else:
+        import tensorflow as tf
+        with tf.device('/cpu:0'):  # this model will not be actually used, it's template
+            model = Model(inputs=inputs, outputs=outputs)
+
+    return model
+
 
 
 # # this one is for COCO dataset

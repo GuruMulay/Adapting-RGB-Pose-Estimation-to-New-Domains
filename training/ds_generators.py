@@ -30,7 +30,7 @@ class DataIteratorBase:
         while True:
             yield tuple(self._recv_arrays())
 
-    def gen(self, n_stages, use_eggnong_common_joints):
+    def gen(self, n_stages, use_eggnong_common_joints, branch_flag=0):
         batches_x, batches_x1, batches_x2, batches_y1, batches_y2 = \
             [None]*self.batch_size, [None]*self.batch_size, [None]*self.batch_size, \
             [None]*self.batch_size, [None]*self.batch_size
@@ -121,7 +121,12 @@ class DataIteratorBase:
 #                         batch_y1, batch_y2]
                     
                 # for n staged network
-                yield [batch_x, batch_x1, batch_x2], [batch_y1, batch_y2] * n_stages
+                if branch_flag == 0:
+                    yield [batch_x, batch_x1, batch_x2], [batch_y1, batch_y2] * n_stages
+                elif branch_flag == 1:
+                    yield [batch_x, batch_x1], [batch_y1] * n_stages
+                else:
+                    yield [batch_x, batch_x2], [batch_y2] * n_stages
 
                 self.keypoints = [None] * self.batch_size
 
