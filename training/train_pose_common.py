@@ -5,7 +5,7 @@ import re
 import math
 sys.path.append("..")
 
-from model import get_training_model_eggnog_v1
+from model import get_training_model_common
 from dataset_gen import DataGenerator  #g
 from optimizers import MultiSGD
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint, CSVLogger, TensorBoard, TerminateOnNaN
@@ -30,12 +30,15 @@ With this version:
 Data can be read and augmented on-the-fly. 
 Data can be read from *_augmented directories.
 
+More:
+This version trains on both COCO and EGGNOG simultaneously and val sets are 2: one for COCO and EGGNOG each.
+
 """
 
-# for common set of joints betwenn eggnog and coco
-# remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common
+# for common set of joints between eggnog and coco
+remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common joints
 # for removing 6 joints on two hands
-remove_joints = [7, 11, 15, 16, 17, 18]
+# remove_joints = [7, 11, 15, 16, 17, 18]
 
 def update_config_as_per_removed_joints():
     # update the config class instance
@@ -49,12 +52,14 @@ def update_config_as_per_removed_joints():
     EggnogGlobalConfig.n_kp = len(EggnogGlobalConfig.joint_indices) - 1
 
     for p, pair in enumerate(EggnogGlobalConfig.paf_pairs_indices):  # 18
+        print("p, pair", p, pair)
         if pair[0] in remove_joints or pair[1] in remove_joints:
             rm_pairs.append(pair)
             rm_paf_xy.append(2*p)  # add x paf map index to remove list
             rm_paf_xy.append(2*p+1)  # add y paf map index to remove list
             # following this way becasue you cannot do ".remove" on a list while enumerating over it.
     
+    print("rm_pairs, rm_paf_xy", rm_pairs, rm_paf_xy)
     for rm in rm_pairs:
         EggnogGlobalConfig.paf_pairs_indices.remove(rm)
     for rm in rm_paf_xy:
@@ -80,8 +85,10 @@ n_stages = 2
 train_in_finetune_mode = False
 preload_vgg = True
 split_sessionwise = True  # e.g., s04 for training s07 for validation; OR split train and val sessionwise, 70% session for train and 30% session for val
-branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only) 
+branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only) 
 
+if branch_flag == 0 or branch_flag == 1:
+    raise NotImplementedError("L1 containing version is not written yet because we do not have 3 sets of pafs stored in pre-generated .npy files in the gt _augmented folders. Those pafs are neck to hipL; neck to hipR; and nose to neck.")
 
 # stores train and val data
 partition_dict = {}
@@ -120,8 +127,8 @@ if split_sessionwise:
     val_sessions = ['s06', 's07']
     
     # only take 1/div_factor fraction of data
-    div_factor_train = 20
-    div_factor_val = 100
+    div_factor_train = 10
+    div_factor_val = 75
     div_factor_aug = 3  # there are 5 versions of every frame after augmentation (_0, 1, 2, 3, 4.jpg) 
     
     print("train_sessions", train_sessions)
@@ -151,9 +158,9 @@ max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/lesser_joints/0612180357pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0613181100pm/training/"
 print("creating a directory", BASE_DIR)
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
@@ -178,7 +185,7 @@ def get_last_epoch_and_weights_file():
     return None, None
 
 
-model = get_training_model_eggnog_v1(weight_decay, gpus=use_multiple_gpus, stages=n_stages, branch_flag=branch_flag)
+model = get_training_model_common(weight_decay, gpus=use_multiple_gpus, stages=n_stages, branch_flag=branch_flag)
 
 # if verbose_print:
 #     print("model summary ====================================================== ", model.summary())
@@ -345,8 +352,8 @@ def prepare_train_val_data_dict_offline_version():
 
 prepare_train_val_data_dict_offline_version()
 # # Generators
-training_generator = DataGenerator(**params).generate(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train", online_aug=False)
-validation_generator = DataGenerator(**params).generate(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val", online_aug=False)
+training_generator = DataGenerator(**params).generate_with_masks(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train", online_aug=False, masking=True)
+validation_generator = DataGenerator(**params).generate_with_masks(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val", online_aug=False, masking=True)
 
 
 train_di = training_generator  # eggnog

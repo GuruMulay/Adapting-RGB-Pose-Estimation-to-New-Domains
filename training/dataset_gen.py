@@ -67,7 +67,53 @@ class DataGenerator(object):
             # Generate data
             X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment)
         
-    
+        
+    def generate_with_masks(self, file_IDs, n_stages, shuffle=True, augment=True, mode="", online_aug=False, masking=False):
+        'Generates batches of samples'
+        while 1:
+            # Generate order of exploration of dataset
+            indexes = self.__get_exploration_order(file_IDs, shuffle)
+            
+            # Generate batches
+            imax = int(len(indexes)/self.batch_size)  # len(indexes) == len(file_IDs)  # e.g., imax = 608/32 = 19
+            for i in range(imax):
+                # Find list of IDs
+                file_IDs_temp = [file_IDs[k] for k in indexes[i*self.batch_size:(i+1)*self.batch_size]]
+                
+                # Generate data
+                if online_aug:
+                    X, y1, y2, kp = self.__data_generation_online(file_IDs_temp, augment, mode)
+                else:
+                    X, y1, y2, kp = self.__data_generation_offline(file_IDs_temp, augment, mode)
+                    
+                """
+                returns [x] = (batch_size, height (240), width (320), 3)
+                        [y1] = (batch_size, height (30), width (40), 36) pafs
+                        [y2] = (batch_size, height (30), width (40), 20) heatmaps
+                """
+                
+                # following is inefficient for one-branched networks because we read both y1 and y2 even if we want to use only one of them
+                if not masking:
+                    if self.branch_flag == 2:
+                        yield [X], [y2] * n_stages
+
+                    elif self.branch_flag == 1:
+                        yield [X], [y1] * n_stages
+
+                    else:
+                        yield [X], [y1, y2] * n_stages
+                
+                else:  # to match with COCO's generator, use np.ones as a mask for both paf and 
+                    if self.branch_flag == 2:
+                        yield [X, np.ones(y2.shape)], [y2] * n_stages
+
+                    elif self.branch_flag == 1:
+                        yield [X, np.ones(y1.shape)], [y1] * n_stages
+
+                    else:
+                        yield [X, np.ones(y1.shape), np.ones(y2.shape)], [y1, y2] * n_stages
+                    
+                    
     def generate(self, file_IDs, n_stages, shuffle=True, augment=True, mode="", online_aug=False):
         'Generates batches of samples'
         # print("in gen")

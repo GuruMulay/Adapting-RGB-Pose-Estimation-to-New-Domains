@@ -12,6 +12,11 @@ else:
   buffer_ = buffer  # noqa
 
 
+import skimage.io
+
+save_transformed_path = None  # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r4/'  # None
+
+
 class DataIteratorBase:
 
     def __init__(self, batch_size = 10):
@@ -77,14 +82,29 @@ class DataIteratorBase:
             # print("gt shapes before common: vec, heat", vec_label.shape, heat_label.shape)  # 
             if use_eggnong_common_joints:
                 vec_label = vec_label[:, :, RmpeCommonConfig.keep_paf_indices]
-                heat_label = heat_label[:, :, RmpeCommonConfig.keep_joint_indices]
+                # calculate background on the spot
+                heat_label_no_bk = heat_label[:, :, RmpeCommonConfig.keep_joint_indices[:-1]]
+                heat_label = np.dstack(( heat_label_no_bk, (1 - np.max(heat_label_no_bk[:,:,:], axis=2)) ))
+                # heat_label = heat_label[:, :, RmpeCommonConfig.keep_joint_indices]
             # print("gt shapes after common: vec, heat", vec_label.shape, heat_label.shape)  #
             
             batches_y1[sample_idx]=vec_label[np.newaxis, ...]
             batches_y2[sample_idx]=heat_label[np.newaxis, ...]
-
+        
             self.keypoints[sample_idx] = kpts
-
+            
+#             print("data_image shape", dta_img.shape, type(dta_img))  # (368, 368, 3)  <class 'numpy.ndarray'>
+#             print("mask_img shape", mask_img.shape, type(mask_img))  # (46, 46)  <class 'numpy.ndarray'>
+#             print("vec_label label shape", vec_label.shape, type(vec_label))  # (46, 46, 18) <class 'numpy.ndarray'>
+#             print("heat_label label shape", heat_label.shape, type(heat_label))  # (46, 46, 11) <class 'numpy.ndarray'>
+            
+            if save_transformed_path:
+                idx = np.random.randint(1000)
+                skimage.io.imsave(save_transformed_path + "/" + str(idx) + '_240x320_transformed.jpg', dta_img)
+                np.save(save_transformed_path + "/" + str(idx) + '_mask.npy', mask_img)
+                np.save(save_transformed_path + "/" + str(idx) + '_paf30x40_transformed.npy', vec_label)
+                np.save(save_transformed_path + "/" + str(idx) + '_heatmap30x40_transformed.npy', heat_label)
+            
             sample_idx += 1
 
             if sample_idx == self.batch_size:

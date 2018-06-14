@@ -34,7 +34,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 
 # testing eggnog with only n stages
-n_stages = 2
+n_stages = 3
 use_eggnong_common_joints = True 
 branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)
 
@@ -44,7 +44,7 @@ print("use_eggnong_common_joints", use_eggnong_common_joints)
 print("branch_flag", branch_flag)
 
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/0613180230pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/06131801130pm/training/"
 os.makedirs(BASE_DIR, exist_ok=True)
 print("base dir ========================", BASE_DIR)
 WEIGHTS_SAVE = 'weights.{epoch:04d}.h5'
