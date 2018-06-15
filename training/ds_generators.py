@@ -17,6 +17,73 @@ import skimage.io
 save_transformed_path = None  # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r4/'  # None
 
 
+class DataGenCommon:
+    
+    def __init__(self, data_gen_eggnog, data_gen_coco):
+        self.data_gen_eggnog = data_gen_eggnog
+        self.data_gen_coco = data_gen_coco
+        self.records = 0
+        self.records_eggnog = 0
+        self.records_coco = 0
+      
+    
+    def gen_common(self):
+
+        while True:
+            yield tuple(self.gen_raw())
+            
+            
+    def gen_raw(self):
+
+        while True:
+            if self.data_gen_eggnog:  # check if not None
+                tuple_eggnog = next(self.data_gen_eggnog, None)  # None???
+                assert(len(tuple_eggnog) == 2)
+            if self.data_gen_coco:  # check if not None
+                tuple_coco = next(self.data_gen_coco, None)  # None???
+                assert(len(tuple_coco) == 2)
+            
+#             print("len(tuple_eggnog) len(tuple_coco)", len(tuple_eggnog), len(tuple_coco))  # len(tuple_eggnog) len(tuple_coco) 2 2# len(tuple_eggnog) len(tuple_coco) 2 2
+#             print("tuple_eggnog 0 and 1 len", len(tuple_eggnog[0]), len(tuple_eggnog[1]))  # tuple_eggnog 0 and 1 2 2
+#             print("tuple_eggnog 00 01 10 11", type(tuple_eggnog[0][0]), type(tuple_eggnog[0][1]), type(tuple_eggnog[1][0]), type(tuple_eggnog[1][1]))  # <class 'numpy.ndarray'> <class 'numpy.ndarray'> <class 'numpy.ndarray'> <class 'numpy.ndarray'>
+            
+#             print("tuple_eggnog 00 01 10 11", tuple_eggnog[0][0].shape, tuple_eggnog[0][1].shape, tuple_eggnog[1][0].shape, tuple_eggnog[1][1].shape)  # (5, 240, 320, 3) (5, 30, 40, 11) (5, 30, 40, 11) (5, 30, 40, 11)
+#             print("tuple_coco 00 01 10 11", tuple_coco[0][0].shape, tuple_coco[0][1].shape, tuple_coco[1][0].shape, tuple_coco[1][1].shape)  # (5, 368, 368, 3) (5, 46, 46, 11) (5, 46, 46, 11) (5, 46, 46, 11)
+
+            
+#             # ValueError: all the input array dimensions except for the concatenation axis must match exactly
+#             x = np.concatenate((tuple_eggnog[0][0], tuple_coco[0][0]), axis=0)
+#             x2 = np.concatenate((tuple_eggnog[0][1], tuple_coco[0][1]), axis=0)
+            
+#             y2n1 = np.concatenate((tuple_eggnog[1][0], tuple_coco[1][0]), axis=0)  # y2 stage n1
+#             y2n2 = np.concatenate((tuple_eggnog[1][1], tuple_coco[1][1]), axis=0)  # y2 stage n2
+            
+#             # merge and shuffle the two tuples 
+#             return ([x, x2], [y1, y2])
+
+            # Alternate between these two gens
+            self.records += 1
+            # print("self.records =================", self.records)
+        
+            if self.data_gen_eggnog is None and tuple_coco is not None:
+                # print("Only coco data returned")
+                return tuple_coco
+            
+            if self.data_gen_coco is None and tuple_eggnog is not None:
+                # print("Only eggnog data returned")
+                return tuple_eggnog
+                
+            if self.records%2 == 0 and tuple_eggnog is not None:
+                self.records_eggnog += 1
+                # print("self.records_eggnog and tpl len", self.records_eggnog, len(tuple_eggnog), type(tuple_eggnog))  # self.records and tpl len 8 2 <class 'tuple'>
+                return tuple_eggnog
+            
+            if self.records%2 == 1 and tuple_coco is not None:
+                self.records_coco += 1
+                # print("self.records_coco and tpl len", self.records_coco, len(tuple_coco), type(tuple_coco))  # self.records and tpl len 8 2 <class 'tuple'>
+                return tuple_coco
+            
+            
 class DataIteratorBase:
 
     def __init__(self, batch_size = 10):

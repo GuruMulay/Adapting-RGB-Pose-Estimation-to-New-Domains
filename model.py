@@ -381,7 +381,12 @@ def get_training_model_common(weight_decay, gpus=None, stages=6, branch_flag=0):
     img_input_shape = (None, None, 3)
     vec_input_shape = (None, None, np_branch1)
     heat_input_shape = (None, None, np_branch2)
-    # print("EggnogGlobalConfig.n_kp, n_hm, n_paf", EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_hm, EggnogGlobalConfig.n_paf)
+    
+    print("Verifying if EGGNOG and COCO specified joints and paf count is the same.")
+#     assert(np_branch1 == EggnogGlobalConfig.n_paf)  # EGGNOG has three less pafs as compared to COCO
+    assert(np_branch2 == EggnogGlobalConfig.n_hm)
+    
+    print("EggnogGlobalConfig.n_kp, n_hm, n_paf", EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_hm, EggnogGlobalConfig.n_paf)
     print("np_branch1, np_branch2", np_branch1, np_branch2)
 
     inputs = []
