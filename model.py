@@ -93,7 +93,7 @@ def vgg_block(x, weight_decay):
 #     return x
 
 
-# using for warm-starting prototype. The following names match with model.h5 file's names.
+# Using this for warm-starting prototype. The following names match with model.h5 file's names.
 def stage1_block(x, num_p, branch, weight_decay):
     # Block 1
     x = conv(x, 128, 3, "conv5_1_CPM_L%d" % branch, (weight_decay, 0))  # Assign_40

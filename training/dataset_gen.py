@@ -305,10 +305,11 @@ class DataGenerator(object):
             hm_temp = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'), mmap_mode='r')
             
             ## BUG FIX: Final -1 background heatmap needs to be updated for these set of joints
-            hm_no_bk = hm_temp[:, :, EggnogGlobalConfig.joint_indices[:-1]]  # slice the loaded array using updated joint indices minus the background hm and # generate background heatmap
+            hm_no_bk = hm_temp[:, :, np.array(EggnogGlobalConfig.joint_indices[:-1])]  # slice the loaded array using updated joint indices minus the background hm and # generate background heatmap
             
-            y1[i, :, :, :] = paf_temp[:, :, EggnogGlobalConfig.paf_indices_xy]  # slice the loaded array using updated paf indices
-            y2[i, :, :, :] = np.dstack(( hm_no_bk, (1 - np.max(hm_no_bk[:,:,:], axis=2)) ))
+            hm_no_bk_coco = hm_no_bk[:, :, EggnogGlobalConfig.eggnog_to_coco_10_joints_mapping]
+            y1[i, :, :, :] = paf_temp[:, :, np.array(EggnogGlobalConfig.paf_indices_xy)]  # slice the loaded array using updated paf indices
+            y2[i, :, :, :] = np.dstack(( hm_no_bk_coco, (1 - np.max(hm_no_bk_coco[:,:,:], axis=2)) ))
             
             # y1[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'))
             # y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'))

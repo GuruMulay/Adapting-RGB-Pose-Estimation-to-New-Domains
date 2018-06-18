@@ -169,13 +169,29 @@ class Transformer:
         for n in range(len(kp_tracking_info)):
             if check_if_out_of_the_frame(kp_converted[0][n][0], kp_converted[0][n][1]):  # passing x and y
                 kp_tracking_info[n] = 0
-                print("transformed kp is out of the frame, setting tacking info to UNTRACKED (0) for kp index", n)
+                print("transformed kp is out of the frame, setting tracking info to UNTRACKED (0) for kp index", n)
         
 #         print("img, M shapes", img.shape, M, M.shape)  # (240, 320, 3) (2, 3)
         img = cv2.warpAffine(img, M, (EggnogGlobalConfig.width, EggnogGlobalConfig.height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(127,127,127))
         
+        
+        if aug.flip:
+            # flipping = True, so swap right and left joints
+            # temp
+            kpc_left = kp_converted[:, EggnogGlobalConfig.left_joint_indices, :]
+            kpc_right = kp_converted[:, EggnogGlobalConfig.right_joint_indices, :]
+            
+            kpt_left = kp_tracking_info[EggnogGlobalConfig.left_joint_indices]
+            kpt_right = kp_tracking_info[EggnogGlobalConfig.right_joint_indices]
+            
+            kp_converted[:, EggnogGlobalConfig.right_joint_indices, :] = kpc_left
+            kp_converted[:, EggnogGlobalConfig.left_joint_indices, :] = kpc_right
 
-        return img, kp_converted.reshape((EggnogGlobalConfig.n_kp*2,)), kp_tracking_info
+            kp_tracking_info[EggnogGlobalConfig.right_joint_indices] = kpt_left
+            kp_tracking_info[EggnogGlobalConfig.left_joint_indices] = kpt_right
+            
+        return img, kp_converted.reshape((EggnogGlobalConfig.n_kp*2,)), kp_tracking_info  # kp_conv (38,)
+
 
 
     @staticmethod

@@ -563,7 +563,7 @@ def save_2d_keypoints_and_images_v1(video_name, video_path, npy_path, rgb_skelet
 def transform_data(img, kp, kp_tracking_info, augment):
     """
     img: 240x320 RGB image
-    kp: these are in 1920x1080 space (38, )  19*2 (x,y)`
+    kp: these are in 1920x1080 space (38, )  19*2 (x,y)
     kp_tracking_info: tracking info for 19 joints (19, )
     augment Boolean
     """
@@ -765,7 +765,7 @@ def process_session(session_name):
             #3
             npy_path = os.path.join(eggnog_dataset_path, session_name, layout)  # save npy files (in a video-named folder) in this folder
             
-            # old version with no tracking taken into consideration in generation of gt (actually it is now), and no random augmentattion.
+            # old version with no tracking taken into consideration in generation of gt (actually it is now), and no random augmentation.
 #             save_2d_keypoints_and_images_v1(video[:-4], video_file_path, npy_path, rgb_skeleton_data, frame_time_dict)
             
             # new version where augmentation is done and saved for every image. Also, tracking info is taken into consideration

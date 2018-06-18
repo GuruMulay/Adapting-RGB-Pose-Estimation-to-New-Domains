@@ -77,8 +77,8 @@ class RawDataIterator:
 
     def transform_data(self, img, mask, meta):
 
-#         aug = AugmentSelection.random() if self.augment else AugmentSelection.unrandom()
-        aug = AugmentSelection.unrandom()
+        aug = AugmentSelection.random() if self.augment else AugmentSelection.unrandom()
+#         aug = AugmentSelection.unrandom()
         # print("transform data: before transform", img.shape)  
         # transform data: before transform (427, 640, 3)  # could be any shape
         # transform data: after transform (368, 368, 3)

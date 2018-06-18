@@ -15,8 +15,8 @@ class RmpeCommonConfig:
     """
     # for common set of joints between eggnong and coco
     # remove_parts_indices = [9, 10, 12, 13, 14, 15, 16, 17]
-    keep_joint_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, -1]  # total 11: 10 + 1 background (index -1) (calculated on the spot)
-    keep_paf_indices = [0, 1, 6, 7, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 24, 25, 28, 29]  # total 18
+    keep_joint_indices = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 11, -1])  # total 11: 10 + 1 background (index -1) (calculated on the spot)
+    keep_paf_indices = np.array([0, 1, 6, 7, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 24, 25, 28, 29])  # total 18
 
     
 class RmpeGlobalConfig:

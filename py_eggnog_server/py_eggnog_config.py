@@ -36,8 +36,13 @@ class EggnogGlobalConfig:
     # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, ...., 34, 35]
     
     joint_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    left_joint_indices = [4, 5, 6, 7, 12, 15, 16]  # with 19 joints considered
+    right_joint_indices = [8, 9, 10, 11, 13, 17, 18]  # with 19 joints considered
     
-    # haven't used following
+    # eggnog_to_coco_10_joints_mapping = np.array([0, 5, 6, 7, 2, 3, 4, 9, 8, 1])  # wrong
+    eggnog_to_coco_10_joints_mapping = np.array([0, 9, 4, 5, 6, 1, 2, 3, 8, 7])  # array indexing is faster https://stackoverflow.com/questions/26194389/numpy-rearrange-array-based-upon-index-array
+    
+    # haven't used following for eggnog
     parts = ["nose", "neck", "Rsho", "Relb", "Rwri", "Lsho", "Lelb", "Lwri", "Rhip", "Rkne", "Rank", "Lhip", "Lkne", "Lank", "Reye", "Leye", "Rear", "Lear"]
     num_parts = len(parts)
     parts_dict = dict(zip(parts, range(num_parts)))
@@ -76,7 +81,7 @@ class TransformationParams:
     flip_prob = 0.5
     
     # added for eggnog
-    alpha = 1.5
+    alpha = 2.0
     limb_width = 1.0  # pixels  # for low res pafs
     # limb_width = 1.25*4  # pixels  # for high res pafs used for verification
     
