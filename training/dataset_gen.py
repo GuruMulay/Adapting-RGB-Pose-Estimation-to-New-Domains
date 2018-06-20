@@ -68,7 +68,7 @@ class DataGenerator(object):
             X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment)
         
         
-    def generate_with_masks(self, file_IDs, n_stages, shuffle=True, augment=True, mode="", online_aug=False, masking=False):
+    def generate_with_masks(self, file_IDs, n_stages, shuffle=True, augment=True, mode="", online_aug=False, masking=False, map_to_coco=False):
         'Generates batches of samples'
         while 1:
             # Generate order of exploration of dataset
@@ -82,9 +82,9 @@ class DataGenerator(object):
                 
                 # Generate data
                 if online_aug:
-                    X, y1, y2, kp = self.__data_generation_online(file_IDs_temp, augment, mode)
+                    X, y1, y2, kp = self.__data_generation_online(file_IDs_temp, augment, mode, map_to_coco)
                 else:
-                    X, y1, y2, kp = self.__data_generation_offline(file_IDs_temp, augment, mode)
+                    X, y1, y2, kp = self.__data_generation_offline(file_IDs_temp, augment, mode, map_to_coco)
                     
                 """
                 returns [x] = (batch_size, height (240), width (320), 3)
@@ -195,9 +195,8 @@ class DataGenerator(object):
         return indexes
 
     
-    def __data_generation_online(self, file_IDs_temp, augment, mode):
-        raise  NotImplementedError("This method needs to be updated for the joint removal option in the main file.")
-        'Generates data of batch_size samples' 
+    def __data_generation_online(self, file_IDs_temp, augment, mode, map_to_coco):
+        raise  NotImplementedError("This method needs to be updated for the joint removal option in the main file. Also map_to_coco is not implemented.")
         # X: (n_samples == batch_size, height (240), width (320), n_channels (3) (rgb or bgr))
         
         # Initialization
@@ -272,7 +271,7 @@ class DataGenerator(object):
         return X, y1, y2, kp
     
     
-    def __data_generation_offline(self, file_IDs_temp, augment, mode):
+    def __data_generation_offline(self, file_IDs_temp, augment, mode, map_to_coco):
         """
         Offline version where data is read from the *_augmneted folders
         """
@@ -306,10 +305,14 @@ class DataGenerator(object):
             
             ## BUG FIX: Final -1 background heatmap needs to be updated for these set of joints
             hm_no_bk = hm_temp[:, :, np.array(EggnogGlobalConfig.joint_indices[:-1])]  # slice the loaded array using updated joint indices minus the background hm and # generate background heatmap
-            
-            hm_no_bk_coco = hm_no_bk[:, :, EggnogGlobalConfig.eggnog_to_coco_10_joints_mapping]
+            if map_to_coco:
+                hm_no_bk_coco = hm_no_bk[:, :, EggnogGlobalConfig.eggnog_to_coco_10_joints_mapping]
+                y2[i, :, :, :] = np.dstack(( hm_no_bk_coco, (1 - np.max(hm_no_bk_coco[:,:,:], axis=2)) ))
+                
+            else:
+                y2[i, :, :, :] = np.dstack(( hm_no_bk, (1 - np.max(hm_no_bk[:,:,:], axis=2)) ))
+                
             y1[i, :, :, :] = paf_temp[:, :, np.array(EggnogGlobalConfig.paf_indices_xy)]  # slice the loaded array using updated paf indices
-            y2[i, :, :, :] = np.dstack(( hm_no_bk_coco, (1 - np.max(hm_no_bk_coco[:,:,:], axis=2)) ))
             
             # y1[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'))
             # y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'))

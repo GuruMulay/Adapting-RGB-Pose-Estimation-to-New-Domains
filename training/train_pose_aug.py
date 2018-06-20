@@ -321,7 +321,9 @@ def prepare_train_val_data_dict_offline_version():
                                 # print(file)
                                 partition_val.append(session_name + "/" + layout + "/" +  video_folder + "/" + file.split("_240x320")[0])  # append the path from base dir = eggnog_dataset_dir
 
-
+                                
+    # add random imagenet images without humans 20% of len(partition_train), len(partition_val)
+    
 
     # shuffle train and val list
     random.seed(115)

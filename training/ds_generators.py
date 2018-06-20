@@ -14,7 +14,7 @@ else:
 
 import skimage.io
 
-save_transformed_path = None  # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r4/'  # None
+save_transformed_path = None  #  '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r8/'  # None
 
 
 class DataGenCommon:

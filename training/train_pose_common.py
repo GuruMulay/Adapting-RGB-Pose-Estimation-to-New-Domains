@@ -5,9 +5,9 @@ import re
 import math
 sys.path.append("..")
 
-from model import get_training_model_common
+from model import get_training_model_common, get_training_model_eggnog_v1
 from dataset_gen import DataGenerator  # for eggnog
-from ds_generators import DataIterator, DataGenCommon # for coco and for common DataGenCommon
+from ds_generators import DataIterator, DataGenCommon  # for coco and for common DataGenCommon
 from optimizers import MultiSGD
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint, CSVLogger, TensorBoard, TerminateOnNaN
 from keras.layers.convolutional import Conv2D
@@ -23,6 +23,8 @@ from keras.backend import shape, int_shape
 import pprint
 
 from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig
+from imagenet_images import ImagenetImages
+
 
 """
 NOTE:
@@ -38,8 +40,14 @@ This version trains on both COCO and EGGNOG simultaneously and val sets are 2: o
 
 # for common set of joints between eggnog and coco
 remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common joints
+map_to_coco = False
+coco_type_masking = False
+use_eggnong_common_joints = True
 # for removing 6 joints on two hands
 # remove_joints = [7, 11, 15, 16, 17, 18]
+
+# imagenet path
+imagenet_dir = '/s/red/a/nobackup/imagenet/images/train/
 
 def update_config_as_per_removed_joints():
     # update the config class instance
@@ -86,8 +94,7 @@ n_stages = 2
 train_in_finetune_mode = False
 preload_vgg = True
 split_sessionwise = True  # e.g., s04 for training s07 for validation; OR split train and val sessionwise, 70% session for train and 30% session for val
-branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only) 
-use_eggnong_common_joints = True 
+branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)  
 
 if branch_flag == 0 or branch_flag == 1:
     raise NotImplementedError("L1 containing version is not written yet because we do not have 3 sets of pafs stored in pre-generated .npy files in the gt _augmented folders. Those pafs are neck to hipL; neck to hipR; and nose to neck.")
@@ -118,12 +125,12 @@ partition_dict = {}
 
 # sessionwise split
 if split_sessionwise:
-    train_sessions = ['s01']  #, 's02']  #, 's03', 's08', 's09', 's10']
-    val_sessions = ['s06']  # , 's07']
+    train_sessions = ['s01', 's11']  #, 's02']  #, 's03', 's08', 's09', 's10']
+    val_sessions = ['s06', 's16']  # , 's07']
     
     # only take 1/div_factor fraction of data
-    div_factor_train = 7
-    div_factor_val = 70
+    div_factor_train = 20
+    div_factor_val = 100
     div_factor_aug = 3  # there are 5 versions of every frame after augmentation (_0, 1, 2, 3, 4.jpg) 
     
     print("train_sessions", train_sessions)
@@ -140,6 +147,8 @@ print("split_sessionwise", split_sessionwise)
 print("n_stages", n_stages)
 print("branch_flag: [1 => branch L1 only; 2 => branch L2 only (heatmaps only)] ======", branch_flag)
 print("use_eggnong_common_joints", use_eggnong_common_joints)
+print("map_to_coco", map_to_coco)
+print("coco_type_masking", coco_type_masking)
 print("------------------ Flags ----------------------------")
 
 
@@ -156,7 +165,7 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0618180100pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0620180300pm/training/"
 print("creating a directory", BASE_DIR)
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
@@ -181,7 +190,10 @@ def get_last_epoch_and_weights_file():
     return None, None
 
 
-model = get_training_model_common(weight_decay, gpus=use_multiple_gpus, stages=n_stages, branch_flag=branch_flag)
+if coco_type_masking:
+    model = get_training_model_common(weight_decay, gpus=use_multiple_gpus, stages=n_stages, branch_flag=branch_flag)
+else:
+    model = get_training_model_eggnog_v1(weight_decay, gpus=use_multiple_gpus, stages=n_stages, branch_flag=branch_flag)
 
 # if verbose_print:
 #     print("model summary ====================================================== ", model.summary())
@@ -324,8 +336,14 @@ def prepare_train_val_data_dict_offline_version():
                                 # print(file)
                                 partition_val.append(session_name + "/" + layout + "/" +  video_folder + "/" + file.split("_240x320")[0])  # append the path from base dir = eggnog_dataset_dir
 
-
-
+                                
+                                
+#     # add random imagenet images without humans 20% of len(partition_train), len(partition_val)
+#     imagenet = ImagenetImages(imagenet_dir)
+#     imagenet_train = imagenet.get_n_images("train", int(0.2*len(partition_train)))
+#     imagenet_val = imagenet.get_n_images("val", int(0.2*len(partition_val)))
+    
+    
     # shuffle train and val list
     random.seed(115)
     random.shuffle(partition_train)
@@ -355,24 +373,24 @@ prepare_train_val_data_dict_offline_version()
 training_generator_eggnog = DataGenerator(**params)
 validation_generator_eggnog = DataGenerator(**params)
 
-train_di_eggnog = training_generator_eggnog.generate_with_masks(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train", online_aug=False, masking=True)  # eggnog
-val_di_eggnog = validation_generator_eggnog.generate_with_masks(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val", online_aug=False, masking=True)  # eggnog
+train_di_eggnog = training_generator_eggnog.generate_with_masks(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train", online_aug=False, masking=coco_type_masking, map_to_coco=map_to_coco)  # eggnog
+val_di_eggnog = validation_generator_eggnog.generate_with_masks(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val", online_aug=False, masking=coco_type_masking, map_to_coco=map_to_coco)  # eggnog
 
 train_samples_eggnog = len(partition_dict['train'])  # 100  # 117576  len(partition_dict['train'])
 val_samples_eggnog = len(partition_dict['val'])  # 30  # 2476  len(partition_dict['val'])
 print("#### train_samples_eggnog, val_samples_eggnog", train_samples_eggnog, val_samples_eggnog)
 # For eggnog full/5 => partition dict train and val len 88334 29879
 
-# ### COCO
-# train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
-# val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
+### COCO
+train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
+val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
 
-# train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
-# val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
 
-# train_samples_coco = 10000  # 117576  # 100  # 
-# val_samples_coco = 1000  # 2476  # 30  # 
-# print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
+train_samples_coco = 10000  # 117576  # 100  # 
+val_samples_coco = 1000  # 2476  # 30  # 
+print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
 
 ## combined
 # ##1 test with only coco
@@ -382,12 +400,12 @@ print("#### train_samples_eggnog, val_samples_eggnog", train_samples_eggnog, val
 # val_samples_eggnog = 0
 # ##
 
-##2 test with only eggnog
-train_di_coco = None
-val_di_coco = None
-train_samples_coco = 0
-val_samples_coco = 0
-##
+# ##2 test with only eggnog
+# train_di_coco = None
+# val_di_coco = None
+# train_samples_coco = 0
+# val_samples_coco = 0
+# ##
 
 train_gen_common = DataGenCommon(train_di_eggnog, train_di_coco)
 val_gen_common = DataGenCommon(val_di_eggnog, val_di_coco)

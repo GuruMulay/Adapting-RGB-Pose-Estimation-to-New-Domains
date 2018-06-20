@@ -146,6 +146,9 @@ def get_training_model_eggnog_v1(weight_decay, gpus=None, stages=6, branch_flag=
     """
     This model has an additional flag for heatmap only network architecture 
     """
+#     assert(np_branch2 == EggnogGlobalConfig.n_hm)
+#     assert(np_branch1 == EggnogGlobalConfig.n_paf)
+    
     np_branch1 = EggnogGlobalConfig.n_paf
     np_branch2 = EggnogGlobalConfig.n_hm
     

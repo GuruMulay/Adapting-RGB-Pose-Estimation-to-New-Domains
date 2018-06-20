@@ -40,7 +40,8 @@ class EggnogGlobalConfig:
     right_joint_indices = [8, 9, 10, 11, 13, 17, 18]  # with 19 joints considered
     
     # eggnog_to_coco_10_joints_mapping = np.array([0, 5, 6, 7, 2, 3, 4, 9, 8, 1])  # wrong
-    eggnog_to_coco_10_joints_mapping = np.array([0, 9, 4, 5, 6, 1, 2, 3, 8, 7])  # array indexing is faster https://stackoverflow.com/questions/26194389/numpy-rearrange-array-based-upon-index-array
+    # eggnog_to_coco_10_joints_mapping = np.array([0, 9, 4, 5, 6, 1, 2, 3, 8, 7])  # wrong right and left are swapped
+    eggnog_to_coco_10_joints_mapping = np.array([0, 9, 1, 2, 3, 4, 5, 6, 7, 8])  # array indexing is faster https://stackoverflow.com/questions/26194389/numpy-rearrange-array-based-upon-index-array
     
     # haven't used following for eggnog
     parts = ["nose", "neck", "Rsho", "Relb", "Rwri", "Lsho", "Lelb", "Lwri", "Rhip", "Rkne", "Rank", "Lhip", "Lkne", "Lank", "Reye", "Leye", "Rear", "Lear"]
