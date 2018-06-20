@@ -47,7 +47,8 @@ use_eggnong_common_joints = True
 # remove_joints = [7, 11, 15, 16, 17, 18]
 
 # imagenet path
-imagenet_dir = '/s/red/a/nobackup/imagenet/images/train/
+imagenet_dir = '/s/red/a/nobackup/imagenet/images/train/'
+
 
 def update_config_as_per_removed_joints():
     # update the config class instance
@@ -165,7 +166,7 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0620180300pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0620180100pm/training/"
 print("creating a directory", BASE_DIR)
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
@@ -296,7 +297,7 @@ params = {'data_path': eggnog_dataset_path,
           'hm_width': 40,
           'hm_n_channels': EggnogGlobalConfig.n_hm,
           'branch_flag': branch_flag,
-          'save_transformed_path': None
+          'save_transformed_path': None  #'/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r9/'
          }
 # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r2/'
 # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r3/'
@@ -337,12 +338,19 @@ def prepare_train_val_data_dict_offline_version():
                                 partition_val.append(session_name + "/" + layout + "/" +  video_folder + "/" + file.split("_240x320")[0])  # append the path from base dir = eggnog_dataset_dir
 
                                 
-                                
-#     # add random imagenet images without humans 20% of len(partition_train), len(partition_val)
-#     imagenet = ImagenetImages(imagenet_dir)
-#     imagenet_train = imagenet.get_n_images("train", int(0.2*len(partition_train)))
-#     imagenet_val = imagenet.get_n_images("val", int(0.2*len(partition_val)))
+    #####                            
+    # add random imagenet images without humans 20% of len(partition_train), len(partition_val)
+    imagenet = ImagenetImages(imagenet_dir)
+    imagenet_train = imagenet.get_n_images("train", int(0.3*len(partition_train)))
+    imagenet_val = imagenet.get_n_images("val", int(0.3*len(partition_val)))
+    print("Before adding imagenet images:")
+    print("len(partition_train), len(partition_val)", len(partition_train), len(partition_val))
+    print("len(imagenet_train), len(imagenet_val)", len(imagenet_train), len(imagenet_val))
     
+    # combine eggnog and imagenet
+    partition_train = partition_train + imagenet_train
+    partition_val = partition_val + imagenet_val
+    #####
     
     # shuffle train and val list
     random.seed(115)
@@ -373,39 +381,39 @@ prepare_train_val_data_dict_offline_version()
 training_generator_eggnog = DataGenerator(**params)
 validation_generator_eggnog = DataGenerator(**params)
 
-train_di_eggnog = training_generator_eggnog.generate_with_masks(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train", online_aug=False, masking=coco_type_masking, map_to_coco=map_to_coco)  # eggnog
-val_di_eggnog = validation_generator_eggnog.generate_with_masks(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val", online_aug=False, masking=coco_type_masking, map_to_coco=map_to_coco)  # eggnog
+train_di_eggnog = training_generator_eggnog.generate_with_masks(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train", online_aug=False, masking=coco_type_masking, map_to_coco=map_to_coco, imagenet_dir=imagenet_dir)  # eggnog
+val_di_eggnog = validation_generator_eggnog.generate_with_masks(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val", online_aug=False, masking=coco_type_masking, map_to_coco=map_to_coco, imagenet_dir=imagenet_dir)  # eggnog
 
 train_samples_eggnog = len(partition_dict['train'])  # 100  # 117576  len(partition_dict['train'])
 val_samples_eggnog = len(partition_dict['val'])  # 30  # 2476  len(partition_dict['val'])
 print("#### train_samples_eggnog, val_samples_eggnog", train_samples_eggnog, val_samples_eggnog)
 # For eggnog full/5 => partition dict train and val len 88334 29879
 
-### COCO
-train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
-val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
+# ### COCO
+# train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
+# val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
 
-train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
-val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+# train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+# val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
 
-train_samples_coco = 10000  # 117576  # 100  # 
-val_samples_coco = 1000  # 2476  # 30  # 
-print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
+# train_samples_coco = 10000  # 117576  # 100  # 
+# val_samples_coco = 1000  # 2476  # 30  # 
+# print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
 
 ## combined
-# ##1 test with only coco
+# ##1 train with only coco
 # train_di_eggnog = None
 # val_di_eggnog = None
 # train_samples_eggnog = 0
 # val_samples_eggnog = 0
 # ##
 
-# ##2 test with only eggnog
-# train_di_coco = None
-# val_di_coco = None
-# train_samples_coco = 0
-# val_samples_coco = 0
-# ##
+##2 train with only eggnog
+train_di_coco = None
+val_di_coco = None
+train_samples_coco = 0
+val_samples_coco = 0
+##
 
 train_gen_common = DataGenCommon(train_di_eggnog, train_di_coco)
 val_gen_common = DataGenCommon(val_di_eggnog, val_di_coco)

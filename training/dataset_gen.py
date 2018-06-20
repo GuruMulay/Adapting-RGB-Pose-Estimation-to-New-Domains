@@ -3,6 +3,7 @@ import os
 import random
 import matplotlib.pyplot as plt
 import skimage.io
+from skimage.transform import resize
 
 from py_eggnog_server.py_eggnog_transformer import Transformer, AugmentSelection
 from py_eggnog_server.py_eggnog_heatmapper import Heatmapper
@@ -49,6 +50,8 @@ class DataGenerator(object):
             
         # change this later to direct class calling
         self.heatmapper = Heatmapper()
+        
+        print("data_gen object paf_n_channels, hm_n_channels", paf_n_channels, hm_n_channels)
     
     
     def generate_and_save(self, file_IDs, n_stages, shuffle=True, augment=True):
@@ -68,7 +71,7 @@ class DataGenerator(object):
             X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment)
         
         
-    def generate_with_masks(self, file_IDs, n_stages, shuffle=True, augment=True, mode="", online_aug=False, masking=False, map_to_coco=False):
+    def generate_with_masks(self, file_IDs, n_stages, shuffle=True, augment=True, mode="", online_aug=False, masking=False, map_to_coco=False, imagenet_dir=""):
         'Generates batches of samples'
         while 1:
             # Generate order of exploration of dataset
@@ -84,7 +87,7 @@ class DataGenerator(object):
                 if online_aug:
                     X, y1, y2, kp = self.__data_generation_online(file_IDs_temp, augment, mode, map_to_coco)
                 else:
-                    X, y1, y2, kp = self.__data_generation_offline(file_IDs_temp, augment, mode, map_to_coco)
+                    X, y1, y2, kp = self.__data_generation_offline(file_IDs_temp, augment, mode, map_to_coco, imagenet_dir)
                     
                 """
                 returns [x] = (batch_size, height (240), width (320), 3)
@@ -196,7 +199,7 @@ class DataGenerator(object):
 
     
     def __data_generation_online(self, file_IDs_temp, augment, mode, map_to_coco):
-        raise  NotImplementedError("This method needs to be updated for the joint removal option in the main file. Also map_to_coco is not implemented.")
+        raise  NotImplementedError("This method needs to be updated for the joint removal option in the main file. Also map_to_coco is not implemented. Imagenet data reading not implemented.")
         # X: (n_samples == batch_size, height (240), width (320), n_channels (3) (rgb or bgr))
         
         # Initialization
@@ -271,7 +274,7 @@ class DataGenerator(object):
         return X, y1, y2, kp
     
     
-    def __data_generation_offline(self, file_IDs_temp, augment, mode, map_to_coco):
+    def __data_generation_offline(self, file_IDs_temp, augment, mode, map_to_coco, imagenet_dir):
         """
         Offline version where data is read from the *_augmneted folders
         """
@@ -295,27 +298,51 @@ class DataGenerator(object):
 #             # append images to X
 #             # append labels to y1 and y2
             
-            # load stored, augmented images and ground truth
-            X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))
-            # print("img shape (h, w, c)", img.shape)  # height, width, channels (rgb)
-            
-            # Stored ground truths
-            paf_temp = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'), mmap_mode='r')
-            hm_temp = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'), mmap_mode='r')
-            
-            ## BUG FIX: Final -1 background heatmap needs to be updated for these set of joints
-            hm_no_bk = hm_temp[:, :, np.array(EggnogGlobalConfig.joint_indices[:-1])]  # slice the loaded array using updated joint indices minus the background hm and # generate background heatmap
-            if map_to_coco:
-                hm_no_bk_coco = hm_no_bk[:, :, EggnogGlobalConfig.eggnog_to_coco_10_joints_mapping]
-                y2[i, :, :, :] = np.dstack(( hm_no_bk_coco, (1 - np.max(hm_no_bk_coco[:,:,:], axis=2)) ))
-                
-            else:
+            # if imagenet file
+            if "train_set_" in ID:
+                imagenet_img = skimage.io.imread(os.path.join(imagenet_dir, ID))
+                if len(imagenet_img.shape) != 3:
+                    X[i, :, :, :] = np.zeros((self.height, self.width, self.n_channels))
+                    
+                elif imagenet_img.shape[0] > self.height and imagenet_img.shape[1] > self.width:  # can crop if shapes of read image are more than req shape
+                    # print("image shape", imagenet_img.shape)
+                    temp_img = imagenet_img[0:self.height, 0:self.width, :]
+                    # print("temp_img shape", temp_img.shape)
+                    X[i, :, :, :] = temp_img
+                    
+                else:
+                    temp_img = resize(imagenet_img, (self.height, self.width))
+                    # print("temp_img shape", temp_img.shape)
+                    X[i, :, :, :] = temp_img
+                    
+                hm_no_bk = np.zeros((self.hm_height, self.hm_width, self.hm_n_channels-1))
                 y2[i, :, :, :] = np.dstack(( hm_no_bk, (1 - np.max(hm_no_bk[:,:,:], axis=2)) ))
                 
-            y1[i, :, :, :] = paf_temp[:, :, np.array(EggnogGlobalConfig.paf_indices_xy)]  # slice the loaded array using updated paf indices
+                y1[i, :, :, :] = np.zeros((self.paf_height, self.paf_width, self.paf_n_channels))
             
-            # y1[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'))
-            # y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'))
+            else:
+                # load stored, augmented images and ground truth
+                X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))
+                # print("img shape (h, w, c)", img.shape)  # height, width, channels (rgb)
+
+                # Stored ground truths
+                paf_temp = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'), mmap_mode='r')
+                hm_temp = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'), mmap_mode='r')
+
+                ## BUG FIX: Final -1 background heatmap needs to be updated for these set of joints
+                hm_no_bk = hm_temp[:, :, np.array(EggnogGlobalConfig.joint_indices[:-1])]  # slice the loaded array using updated joint indices minus the background hm and # generate background heatmap
+                if map_to_coco:
+                    hm_no_bk_coco = hm_no_bk[:, :, EggnogGlobalConfig.eggnog_to_coco_10_joints_mapping]
+                    y2[i, :, :, :] = np.dstack(( hm_no_bk_coco, (1 - np.max(hm_no_bk_coco[:,:,:], axis=2)) ))
+
+                else:
+                    y2[i, :, :, :] = np.dstack(( hm_no_bk, (1 - np.max(hm_no_bk[:,:,:], axis=2)) ))
+
+                y1[i, :, :, :] = paf_temp[:, :, np.array(EggnogGlobalConfig.paf_indices_xy)]  # slice the loaded array using updated paf indices
+            
+                # y1[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'))
+                # y2[i, :, :, :] = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'))
+                
             kp = None  # no need to read kp because it's not used after this line
 
             # save transformed 
