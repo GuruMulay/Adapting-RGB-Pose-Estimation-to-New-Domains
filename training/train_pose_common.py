@@ -30,24 +30,29 @@ from imagenet_images import ImagenetImages
 NOTE:
 OFFLINE version
 With this version:
-Data can be read and augmented on-the-fly. 
 Data can be read from *_augmented directories.
 
 More:
 This version trains on both COCO and EGGNOG simultaneously and val sets are 2: one for COCO and EGGNOG each.
 
 """
-
+# eggnog
 # for common set of joints between eggnog and coco
 remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common joints
 map_to_coco = False
 coco_type_masking = False
+add_imagenet_images = True
+crop_to_square = True  # crop the iamges and gt to a square shape
+# coco
 use_eggnong_common_joints = True
 # for removing 6 joints on two hands
 # remove_joints = [7, 11, 15, 16, 17, 18]
 
 # imagenet path
 imagenet_dir = '/s/red/a/nobackup/imagenet/images/train/'
+
+#g
+verbose_print = True
 
 
 def update_config_as_per_removed_joints():
@@ -85,16 +90,14 @@ def update_config_as_per_removed_joints():
     print("Final EggnogGlobalConfig.paf_indices", EggnogGlobalConfig.paf_indices_xy)
     print("EggnogGlobalConfig.n_kp, n_hm, n_paf", EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_hm, EggnogGlobalConfig.n_paf)
 
-    
-#g
-verbose_print = True
 
 update_config_as_per_removed_joints()
+
 
 n_stages = 2
 train_in_finetune_mode = False
 preload_vgg = True
-split_sessionwise = True  # e.g., s04 for training s07 for validation; OR split train and val sessionwise, 70% session for train and 30% session for val
+split_sessionwise = True
 branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)  
 
 if branch_flag == 0 or branch_flag == 1:
@@ -140,7 +143,6 @@ if split_sessionwise:
     print("div_factor_val", div_factor_val)
     print("div_factor_aug", div_factor_aug)
 
-
 print("------------------ Flags ----------------------------")
 print("train_in_finetune_mode", train_in_finetune_mode)
 print("preload_vgg", preload_vgg)
@@ -150,6 +152,7 @@ print("branch_flag: [1 => branch L1 only; 2 => branch L2 only (heatmaps only)] =
 print("use_eggnong_common_joints", use_eggnong_common_joints)
 print("map_to_coco", map_to_coco)
 print("coco_type_masking", coco_type_masking)
+print("crop_to_square", crop_to_square)
 print("------------------ Flags ----------------------------")
 
 
@@ -166,8 +169,9 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0620180100pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0621180200pm/training/"
 print("creating a directory", BASE_DIR)
+
 os.makedirs(BASE_DIR, exist_ok=True)
 WEIGHTS_SAVE = 'weights_egg.{epoch:04d}.h5'
 TRAINING_LOG = BASE_DIR + "training_eggnog.csv"
@@ -282,7 +286,6 @@ def eucl_loss(x, y):
 
 # eggonog sessions
 eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"  # original size dataset
-# eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/"  # small dataset
 print("eggnog_dataset_path ==============", eggnog_dataset_path)
 
 params = {'data_path': eggnog_dataset_path,
@@ -297,9 +300,8 @@ params = {'data_path': eggnog_dataset_path,
           'hm_width': 40,
           'hm_n_channels': EggnogGlobalConfig.n_hm,
           'branch_flag': branch_flag,
-          'save_transformed_path': None  #'/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r9/'
+          'save_transformed_path': None  # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r12/'
          }
-# '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r2/'
 # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r3/'
 
 
@@ -311,7 +313,7 @@ def prepare_train_val_data_dict_offline_version():
     partition_dict['train'] = []
     partition_dict['val'] = []
 
-    if split_sessionwise:   
+    if split_sessionwise:
         # go through sessions and add img path to lists
         # create train list
         for session_name in train_sessions:
@@ -338,18 +340,19 @@ def prepare_train_val_data_dict_offline_version():
                                 partition_val.append(session_name + "/" + layout + "/" +  video_folder + "/" + file.split("_240x320")[0])  # append the path from base dir = eggnog_dataset_dir
 
                                 
-    #####                            
-    # add random imagenet images without humans 20% of len(partition_train), len(partition_val)
-    imagenet = ImagenetImages(imagenet_dir)
-    imagenet_train = imagenet.get_n_images("train", int(0.3*len(partition_train)))
-    imagenet_val = imagenet.get_n_images("val", int(0.3*len(partition_val)))
-    print("Before adding imagenet images:")
-    print("len(partition_train), len(partition_val)", len(partition_train), len(partition_val))
-    print("len(imagenet_train), len(imagenet_val)", len(imagenet_train), len(imagenet_val))
-    
-    # combine eggnog and imagenet
-    partition_train = partition_train + imagenet_train
-    partition_val = partition_val + imagenet_val
+    #####
+    if add_imagenet_images:
+        # add random imagenet images without humans: 30% of len(partition_train), len(partition_val)
+        imagenet = ImagenetImages(imagenet_dir)
+        imagenet_train = imagenet.get_n_images("train", int(0.3*len(partition_train)))
+        imagenet_val = imagenet.get_n_images("val", int(0.3*len(partition_val)))
+        print("Before adding imagenet images:")
+        print("len(partition_train), len(partition_val)", len(partition_train), len(partition_val))
+        print("len(imagenet_train), len(imagenet_val)", len(imagenet_train), len(imagenet_val))
+
+        # combine eggnog and imagenet lists
+        partition_train = partition_train + imagenet_train
+        partition_val = partition_val + imagenet_val
     #####
     
     # shuffle train and val list
@@ -381,8 +384,8 @@ prepare_train_val_data_dict_offline_version()
 training_generator_eggnog = DataGenerator(**params)
 validation_generator_eggnog = DataGenerator(**params)
 
-train_di_eggnog = training_generator_eggnog.generate_with_masks(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train", online_aug=False, masking=coco_type_masking, map_to_coco=map_to_coco, imagenet_dir=imagenet_dir)  # eggnog
-val_di_eggnog = validation_generator_eggnog.generate_with_masks(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val", online_aug=False, masking=coco_type_masking, map_to_coco=map_to_coco, imagenet_dir=imagenet_dir)  # eggnog
+train_di_eggnog = training_generator_eggnog.generate_with_masks(partition_dict['train'], n_stages, shuffle=True, augment=True, mode="train", online_aug=False, masking=coco_type_masking, map_to_coco=map_to_coco, imagenet_dir=imagenet_dir, crop_to_square=crop_to_square)  # eggnog
+val_di_eggnog = validation_generator_eggnog.generate_with_masks(partition_dict['val'], n_stages, shuffle=False, augment=False, mode="val", online_aug=False, masking=coco_type_masking, map_to_coco=map_to_coco, imagenet_dir=imagenet_dir, crop_to_square=crop_to_square)  # eggnog
 
 train_samples_eggnog = len(partition_dict['train'])  # 100  # 117576  len(partition_dict['train'])
 val_samples_eggnog = len(partition_dict['val'])  # 30  # 2476  len(partition_dict['val'])

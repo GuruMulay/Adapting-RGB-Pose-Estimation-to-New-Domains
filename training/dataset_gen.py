@@ -71,7 +71,7 @@ class DataGenerator(object):
             X, y1, y2, kp = self.__data_generation(file_IDs_temp, augment)
         
         
-    def generate_with_masks(self, file_IDs, n_stages, shuffle=True, augment=True, mode="", online_aug=False, masking=False, map_to_coco=False, imagenet_dir=""):
+    def generate_with_masks(self, file_IDs, n_stages, shuffle=True, augment=True, mode="", online_aug=False, masking=False, map_to_coco=False, imagenet_dir="", crop_to_square=False):
         'Generates batches of samples'
         while 1:
             # Generate order of exploration of dataset
@@ -96,6 +96,19 @@ class DataGenerator(object):
                 """
                 
                 # following is inefficient for one-branched networks because we read both y1 and y2 even if we want to use only one of them
+                
+                if crop_to_square:
+                    X = X[:, :, 40:320-40, :]
+                    y1 = y1[:, :, 5:35, :]
+                    y2 = y2[:, :, 5:35, :]
+                
+                # save the batch data itself
+                if self.save_transformed_path:
+                    idx = np.random.randint(1000)
+                    np.save(self.save_transformed_path + "/" + str(idx) + '_240x320_transformed.npy', X)  # (5, 240, 320, 3)
+                    np.save(self.save_transformed_path + "/" + str(idx) + '_paf30x40_transformed.npy', y1)  # (5, 30, 40, 11)
+                    np.save(self.save_transformed_path + "/" + str(idx) + '_heatmap30x40_transformed.npy', y2)  # (5, 30, 40, 11)
+                    
                 if not masking:
                     if self.branch_flag == 2:
                         yield [X], [y2] * n_stages
@@ -346,11 +359,11 @@ class DataGenerator(object):
             kp = None  # no need to read kp because it's not used after this line
 
             # save transformed 
-            if self.save_transformed_path:
-#                 print("saving ", ID.split('/')[-1] + '_240x320_transformed.jpg')
-                skimage.io.imsave(self.save_transformed_path + "/" + ID.split('/')[-1] + '_240x320_transformed.jpg', X[i, :, :, :])
-                np.save(self.save_transformed_path + "/" + ID.split('/')[-1] + '_paf30x40_transformed.npy', y1[i, :, :, :])
-                np.save(self.save_transformed_path + "/" + ID.split('/')[-1] + '_heatmap30x40_transformed.npy', y2[i, :, :, :])
+#             if self.save_transformed_path:
+# #                 print("saving ", ID.split('/')[-1] + '_240x320_transformed.jpg')
+#                 skimage.io.imsave(self.save_transformed_path + "/" + ID.split('/')[-1] + '_240x320_transformed.jpg', X[i, :, :, :])
+#                 np.save(self.save_transformed_path + "/" + ID.split('/')[-1] + '_paf30x40_transformed.npy', y1[i, :, :, :])
+#                 np.save(self.save_transformed_path + "/" + ID.split('/')[-1] + '_heatmap30x40_transformed.npy', y2[i, :, :, :])
                     
             
         return X, y1, y2, kp

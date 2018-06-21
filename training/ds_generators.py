@@ -14,7 +14,7 @@ else:
 
 import skimage.io
 
-save_transformed_path = None  #  '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r8/'  # None
+save_transformed_path = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r11/'  # None
 
 
 class DataGenCommon:
@@ -165,12 +165,12 @@ class DataIteratorBase:
 #             print("vec_label label shape", vec_label.shape, type(vec_label))  # (46, 46, 18) <class 'numpy.ndarray'>
 #             print("heat_label label shape", heat_label.shape, type(heat_label))  # (46, 46, 11) <class 'numpy.ndarray'>
             
-            if save_transformed_path:
-                idx = np.random.randint(1000)
-                skimage.io.imsave(save_transformed_path + "/" + str(idx) + '_240x320_transformed.jpg', dta_img)
-                np.save(save_transformed_path + "/" + str(idx) + '_mask.npy', mask_img)
-                np.save(save_transformed_path + "/" + str(idx) + '_paf30x40_transformed.npy', vec_label)
-                np.save(save_transformed_path + "/" + str(idx) + '_heatmap30x40_transformed.npy', heat_label)
+#             if save_transformed_path:
+#                 idx = np.random.randint(1000)
+#                 skimage.io.imsave(save_transformed_path + "/" + str(idx) + '_240x320_transformed.jpg', dta_img)
+#                 np.save(save_transformed_path + "/" + str(idx) + '_mask.npy', mask_img)
+#                 np.save(save_transformed_path + "/" + str(idx) + '_paf30x40_transformed.npy', vec_label)
+#                 np.save(save_transformed_path + "/" + str(idx) + '_heatmap30x40_transformed.npy', heat_label)
             
             sample_idx += 1
 
@@ -206,7 +206,13 @@ class DataIteratorBase:
 #                         batch_y1, batch_y2,
 #                         batch_y1, batch_y2,
 #                         batch_y1, batch_y2]
-                    
+                
+                if save_transformed_path:
+                    idx = np.random.randint(1000)
+                    np.save(save_transformed_path + "/" + str(idx) + '_240x320_transformed.npy', batch_x)
+                    np.save(save_transformed_path + "/" + str(idx) + '_paf30x40_transformed.npy', batch_y1)
+                    np.save(save_transformed_path + "/" + str(idx) + '_heatmap30x40_transformed.npy', batch_y2)
+                
                 # for n staged network
                 if branch_flag == 0:
                     yield [batch_x, batch_x1, batch_x2], [batch_y1, batch_y2] * n_stages
