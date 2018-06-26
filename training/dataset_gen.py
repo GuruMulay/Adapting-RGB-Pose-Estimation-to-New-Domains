@@ -108,7 +108,15 @@ class DataGenerator(object):
                     np.save(self.save_transformed_path + "/" + str(idx) + '_240x320_transformed.npy', X)  # (5, 240, 320, 3)
                     np.save(self.save_transformed_path + "/" + str(idx) + '_paf30x40_transformed.npy', y1)  # (5, 30, 40, 11)
                     np.save(self.save_transformed_path + "/" + str(idx) + '_heatmap30x40_transformed.npy', y2)  # (5, 30, 40, 11)
-                    
+#                 print("dtypes:")
+#                 print("X", X.shape, type(X), X.dtype)
+#                 print("y1", y1.shape, type(y1), y1.dtype)
+#                 print("y2", y2.shape, type(y2), y2.dtype)
+#                 X (5, 240, 320, 3) <class 'numpy.ndarray'> uint8
+#                 y1 (5, 30, 40, 12) <class 'numpy.ndarray'> float64
+#                 y2 (5, 30, 40, 11) <class 'numpy.ndarray'> float64
+
+                
                 if not masking:
                     if self.branch_flag == 2:
                         yield [X], [y2] * n_stages
