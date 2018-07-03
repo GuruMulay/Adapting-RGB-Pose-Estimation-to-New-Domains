@@ -24,7 +24,7 @@ import pprint
 
 from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig
 from imagenet_images import ImagenetImages
-
+from sessions_processing import Session
 
 """
 NOTE:
@@ -131,17 +131,28 @@ partition_dict = {}
 if split_sessionwise:
     train_sessions = ['s03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's17', 's21']
     val_sessions = ['s06', 's07', 's14', 's15']
+    n_train_imgs = 10000
+    n_val_imgs = 2000
+    n_train_imgs_per_session = n_train_imgs/len(train_sessions)
+    n_val_imgs_per_session = n_val_imgs/len(val_sessions)
     
+    """
     # only take 1/div_factor fraction of data
     div_factor_train = 20
     div_factor_val = 100
-    div_factor_aug = 3  # there are 5 versions of every frame after augmentation (_0, 1, 2, 3, 4.jpg) 
+    div_factor_aug = 3  # there are 5 versions of every frame after augmentation (_0, 1, 2, 3, 4.jpg)
+    """
     
     print("train_sessions", train_sessions)
     print("val_sessions", val_sessions)
+    print("n_train_imgs", n_train_imgs)
+    print("n_val_imgs", n_val_imgs)
+    
+    """
     print("div_factor_train", div_factor_train)
     print("div_factor_val", div_factor_val)
     print("div_factor_aug", div_factor_aug)
+    """
 
 print("------------------ Flags ----------------------------")
 print("train_in_finetune_mode", train_in_finetune_mode)
@@ -376,7 +387,48 @@ def prepare_train_val_data_dict_offline_version():
     print("partition dict train and val len", len(partition_dict['train']), len(partition_dict['val']))
 
 
-prepare_train_val_data_dict_offline_version()
+def prepare_train_val_data_dict_nbased_version():
+    # new version for eggnog dataset where images are drawn from the session objects
+    partition_train = []
+    partition_val = []
+    
+    partition_dict['train'] = []
+    partition_dict['val'] = []
+    
+    ## create Session objects and draw images
+    
+    
+    
+    #####
+    if add_imagenet_images:
+        # add random imagenet images without humans: 30% of len(partition_train), len(partition_val)
+        imagenet = ImagenetImages(imagenet_dir)
+        imagenet_train = imagenet.get_n_images("train", int(0.2*len(partition_train)))
+        imagenet_val = imagenet.get_n_images("val", int(0.2*len(partition_val)))
+        print("Before adding imagenet images:")
+        print("len(partition_train), len(partition_val)", len(partition_train), len(partition_val))
+        print("len(imagenet_train), len(imagenet_val)", len(imagenet_train), len(imagenet_val))
+
+        # combine eggnog and imagenet lists
+        partition_train = partition_train + imagenet_train
+        partition_val = partition_val + imagenet_val
+    #####
+    
+    # shuffle train and val list
+    random.seed(115)
+    random.shuffle(partition_train)
+    random.shuffle(partition_val)
+
+    # create train and val dict
+    for i, img in enumerate(partition_train):
+        partition_dict['train'].append(img)
+
+    for i, img in enumerate(partition_val):
+        partition_dict['val'].append(img)
+
+# old version where frames were drawn without creating session objects 
+# prepare_train_val_data_dict_offline_version()
+
 
 
 ## Generators ##############################################
