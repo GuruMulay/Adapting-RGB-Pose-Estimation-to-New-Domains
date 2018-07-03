@@ -265,10 +265,10 @@ class DataGenerator(object):
 #             # transform the laoded images and corresponding labels with the same transformation
 #             X, y1, y2, kp = self.transform_data(X, y1, y2, kp, augment)
             
-            # v2
+            # v2  [IMP: converting RGB to BGR to match with coco's BGR order]
             kpi = np.load(os.path.join(self.data_path, ID + '.npy'))
             X[i, :, :, :], y1[i, :, :, :], y2[i, :, :, :], kp[i, :] = self.transform_data_v1(
-                                                    skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg')),
+                                                    skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))[:,:,::-1],
                                                     np.delete(kpi, np.arange(0, kpi.size, 3)), 
                                                     augment
                                                     )  # loads individual images and npys, returns their transformed versions without changing shapes
@@ -329,12 +329,12 @@ class DataGenerator(object):
                     # print("image shape", imagenet_img.shape)
                     temp_img = imagenet_img[0:self.height, 0:self.width, :]
                     # print("temp_img shape", temp_img.shape)
-                    X[i, :, :, :] = temp_img
+                    X[i, :, :, :] = temp_img[:,:,::-1]  # [IMP: converting RGB to BGR to match with coco's BGR order]
                     
                 else:
                     temp_img = resize(imagenet_img, (self.height, self.width))
                     # print("temp_img shape", temp_img.shape)
-                    X[i, :, :, :] = temp_img
+                    X[i, :, :, :] = temp_img[:,:,::-1]  # [IMP: converting RGB to BGR to match with coco's BGR order]
                     
                 hm_no_bk = np.zeros((self.hm_height, self.hm_width, self.hm_n_channels-1))
                 y2[i, :, :, :] = np.dstack(( hm_no_bk, (1 - np.max(hm_no_bk[:,:,:], axis=2)) ))
@@ -343,8 +343,7 @@ class DataGenerator(object):
             
             else:
                 # load stored, augmented images and ground truth
-                X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))
-                # print("img shape (h, w, c)", img.shape)  # height, width, channels (rgb)
+                X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))[:,:,::-1]  # [IMP: converting RGB to BGR to match with coco's BGR order]
 
                 # Stored ground truths
                 paf_temp = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'), mmap_mode='r')

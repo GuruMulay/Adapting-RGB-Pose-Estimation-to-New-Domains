@@ -40,8 +40,8 @@ This version trains on both COCO and EGGNOG simultaneously and val sets are 2: o
 # for common set of joints between eggnog and coco
 remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common joints
 map_to_coco = True
-coco_type_masking = True
-add_imagenet_images = False
+coco_type_masking = False
+add_imagenet_images = True
 crop_to_square = False  # crop the iamges and gt to a square shape
 # coco
 use_eggnong_common_joints = True
@@ -129,8 +129,8 @@ partition_dict = {}
 
 # sessionwise split
 if split_sessionwise:
-    train_sessions = ['s01', 's11']  #, 's02']  #, 's03', 's08', 's09', 's10']
-    val_sessions = ['s06', 's16']  # , 's07']
+    train_sessions = ['s03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's17', 's21']
+    val_sessions = ['s06', 's07', 's14', 's15']
     
     # only take 1/div_factor fraction of data
     div_factor_train = 20
@@ -159,7 +159,7 @@ print("------------------ Flags ----------------------------")
 batch_size = 5
 base_lr = 1e-5
 momentum = 0.9
-weight_decay = 2e-5
+weight_decay = 5e-2
 lr_policy = "step"
 gamma = 0.9  # originally 0.333
 stepsize = 10000*17  # in original code each epoch is 121746 and step change is on 17th epoch
@@ -168,9 +168,9 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 print("weight_decay", weight_decay)
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0750181000pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0702180100pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -301,7 +301,7 @@ params = {'data_path': eggnog_dataset_path,
           'hm_width': 40,
           'hm_n_channels': EggnogGlobalConfig.n_hm,
           'branch_flag': branch_flag,
-          'save_transformed_path': None  # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r12/'
+          'save_transformed_path': None  #'/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r13/'
          }
 # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r3/'
 
@@ -319,7 +319,7 @@ def prepare_train_val_data_dict_offline_version():
         # create train list
         for session_name in train_sessions:
             for layout in [l for l in os.listdir(os.path.join(eggnog_dataset_path, session_name)) if "layout" in l]:
-                for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "augmented" in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
+                for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "augmented" in os.path.join(eggnog_dataset_path, session_name, layout, vf) and "augmented_" not in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
                     print("train video_folder =====================", os.path.join(session_name, layout, video_folder))
 
                     for file in sorted(os.listdir(os.path.join(eggnog_dataset_path, session_name, layout, video_folder))):
@@ -331,7 +331,7 @@ def prepare_train_val_data_dict_offline_version():
         # create val list
         for session_name in val_sessions:
             for layout in [l for l in os.listdir(os.path.join(eggnog_dataset_path, session_name)) if "layout" in l]:
-                for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "augmented" in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
+                for video_folder in [vf for vf in os.listdir(os.path.join(eggnog_dataset_path, session_name, layout)) if os.path.isdir(os.path.join(eggnog_dataset_path, session_name, layout, vf)) and "augmented" in os.path.join(eggnog_dataset_path, session_name, layout, vf)  and "augmented_" not in os.path.join(eggnog_dataset_path, session_name, layout, vf)]:
                     print("val video_folder =====================", os.path.join(session_name, layout, video_folder))
 
                     for file in sorted(os.listdir(os.path.join(eggnog_dataset_path, session_name, layout, video_folder))):
@@ -393,16 +393,16 @@ val_samples_eggnog = len(partition_dict['val'])  # 30  # 2476  len(partition_dic
 print("#### train_samples_eggnog, val_samples_eggnog", train_samples_eggnog, val_samples_eggnog)
 # For eggnog full/5 => partition dict train and val len 88334 29879
 
-### COCO
-train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
-val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
+# ### COCO
+# train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
+# val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
 
-train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
-val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+# train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+# val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
 
-train_samples_coco = 10000  # 117576  # 100  # 
-val_samples_coco = 1000  # 2476  # 30  # 
-print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
+# train_samples_coco = 10000  # 117576  # 100  # 
+# val_samples_coco = 1000  # 2476  # 30  # 
+# print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
 
 ## combined
 # ##1 train with only coco
@@ -412,12 +412,12 @@ print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_sampl
 # val_samples_eggnog = 0
 # ##
 
-# ##2 train with only eggnog
-# train_di_coco = None
-# val_di_coco = None
-# train_samples_coco = 0
-# val_samples_coco = 0
-# ##
+##2 train with only eggnog
+train_di_coco = None
+val_di_coco = None
+train_samples_coco = 0
+val_samples_coco = 0
+##
 
 train_gen_common = DataGenCommon(train_di_eggnog, train_di_coco)
 val_gen_common = DataGenCommon(val_di_eggnog, val_di_coco)

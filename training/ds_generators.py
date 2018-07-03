@@ -14,7 +14,7 @@ else:
 
 import skimage.io
 
-save_transformed_path = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r11/'  # None
+save_transformed_path = None  #  '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r11/'  # None
 
 
 class DataGenCommon:
@@ -72,16 +72,16 @@ class DataGenCommon:
             if self.data_gen_coco is None and tuple_eggnog is not None:
                 # print("Only eggnog data returned")
                 return tuple_eggnog
-                
-            if self.records%2 == 0 and tuple_eggnog is not None:
-                self.records_eggnog += 1
-                # print("self.records_eggnog and tpl len", self.records_eggnog, len(tuple_eggnog), type(tuple_eggnog))  # self.records and tpl len 8 2 <class 'tuple'>
-                return tuple_eggnog
             
-            if self.records%2 == 1 and tuple_coco is not None:
+            if self.records%5 == 0 and tuple_coco is not None:
                 self.records_coco += 1
                 # print("self.records_coco and tpl len", self.records_coco, len(tuple_coco), type(tuple_coco))  # self.records and tpl len 8 2 <class 'tuple'>
                 return tuple_coco
+            
+            else:  #  self.records%2 == 0 and tuple_eggnog is not None:
+                self.records_eggnog += 1
+                # print("self.records_eggnog and tpl len", self.records_eggnog, len(tuple_eggnog), type(tuple_eggnog))  # self.records and tpl len 8 2 <class 'tuple'>
+                return tuple_eggnog
             
             
 class DataIteratorBase:
@@ -206,7 +206,18 @@ class DataIteratorBase:
 #                         batch_y1, batch_y2,
 #                         batch_y1, batch_y2,
 #                         batch_y1, batch_y2]
-                
+
+
+#                 print("dtypes:")
+#                 print("batch_x", batch_x.shape, type(batch_x), batch_x.dtype)
+#                 print("batch_y1", batch_y1.shape, type(batch_y1), batch_y1.dtype)
+#                 print("batch_y2", batch_y2.shape, type(batch_y2), batch_y2.dtype)
+#                 dtypes:
+#                 batch_x (5, 368, 368, 3) <class 'numpy.ndarray'> uint8
+#                 batch_y1 (5, 46, 46, 18) <class 'numpy.ndarray'> float64
+#                 batch_y2 (5, 46, 46, 11) <class 'numpy.ndarray'> float64
+
+
                 if save_transformed_path:
                     idx = np.random.randint(1000)
                     np.save(save_transformed_path + "/" + str(idx) + '_240x320_transformed.npy', batch_x)

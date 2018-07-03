@@ -43,6 +43,10 @@ class EggnogGlobalConfig:
     # eggnog_to_coco_10_joints_mapping = np.array([0, 9, 4, 5, 6, 1, 2, 3, 8, 7])  # wrong right and left are swapped
     eggnog_to_coco_10_joints_mapping = np.array([0, 9, 1, 2, 3, 4, 5, 6, 7, 8])  # array indexing is faster https://stackoverflow.com/questions/26194389/numpy-rearrange-array-based-upon-index-array
     
+    eggnog19_to_eggnog_10_mapping = [3, 4, 5, 6, 8, 9, 10, 12, 13, 14]
+    eggnog19_to_coco_10_mapping = [3, 14, 4, 5, 6, 8, 9, 10, 12, 13]
+    
+    
     # haven't used following for eggnog
     parts = ["nose", "neck", "Rsho", "Relb", "Rwri", "Lsho", "Lelb", "Lwri", "Rhip", "Rkne", "Rank", "Lhip", "Lkne", "Lank", "Reye", "Leye", "Rear", "Lear"]
     num_parts = len(parts)
@@ -75,15 +79,15 @@ class TransformationParams:
 
     target_dist = 1.0;  # 0.6; originally 0.6
     scale_prob = 0.5;   # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
-    scale_min = 0.9;  #  originally 0.5
-    scale_max = 1.1;
+    scale_min = 0.8;  #  originally 0.5
+    scale_max = 1.2;
     max_rotate_degree = 12.
     center_perterb_max = 40.  # x and y
     flip_prob = 0.5
     
     # added for eggnog
-    alpha = 2.0
-    limb_width = 1.0  # pixels  # for low res pafs
+    alpha = 2.25
+    limb_width = 0.75  # pixels  # for low res pafs
     # limb_width = 1.25*4  # pixels  # for high res pafs used for verification
     
     

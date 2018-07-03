@@ -22,8 +22,7 @@ from py_eggnog_server.py_eggnog_transformer import Transformer, AugmentSelection
 
 np.set_printoptions(threshold=np.nan)
 
-
-# global variables
+write_aug_imgs = True
 # eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/"  # for testing this python file
 eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
 # eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_s123/"  # for s01, s02, s03
@@ -590,7 +589,7 @@ def transform_data(img, kp, kp_tracking_info, augment):
 
     
     
-def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skeleton_data, frame_time_dict):
+def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skeleton_data, frame_time_dict, aug_folder_extension):
     mismatch_count = 0
     
     container = av.open(video_path)
@@ -615,8 +614,8 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                     os.makedirs(os.path.join(npy_path, video_name), exist_ok=True)
                     save_dir = os.path.join(npy_path, video_name)
                     
-                    os.makedirs(os.path.join(npy_path, video_name + "_augmented"), exist_ok=True)
-                    save_dir_augmented = os.path.join(npy_path, video_name + "_augmented")
+                    os.makedirs(os.path.join(npy_path, video_name + aug_folder_extension), exist_ok=True)
+                    save_dir_augmented = os.path.join(npy_path, video_name + aug_folder_extension)
                     
                     # 1
                     # save image with the original resolution
@@ -638,38 +637,6 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                     # print("sk_kp shape =", sk_keypoints.shape)  # (38, )
                     
                     
-                    ################################
-                    # save augmented (transformed) images and their ground truths
-                    for a in range(n_aug_per_image):
-                        # print("aug index", a)
-#                         X = np.empty((EggnogGlobalConfig.height, EggnogGlobalConfig.width, 3), dtype=np.uint8)
-                        # print(type(X), X.dtype)  # uint8
-#                         y1 = np.empty((EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.n_paf))
-#                         y2 = np.empty((EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.n_hm))
-#                         kp_transformed = np.empty((EggnogGlobalConfig.n_kp*2))  # (batch x (20-1)*2)  # e.g., 5x38
-                        
-                        # somehow feeding in img_down does not work! So this is a workaround
-                        img_read = skimage.io.imread(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_240x320.jpg"))
-                        sk_keypoints_with_tracking_info = rgb_skeleton_data[nearest_idx][1:]  # ignore index 0 (time)
-                        sk_kp_tracking_info = sk_keypoints_with_tracking_info[np.arange(0, sk_keypoints_with_tracking_info.size, 3)]  # only the info about tracking states (0, 1, 2) for 19 joints
-                        sk_keypoints = np.delete(sk_keypoints_with_tracking_info, np.arange(0, sk_keypoints_with_tracking_info.size, 3))  # this is without tracking info, by removing the tracking info
-                        
-                        # HAD to reread the sk_* becasue following transform data function modifies them for every call
-                        ### print("kp info", sk_keypoints, sk_kp_tracking_info)
-                        X, y1, y2, kp_transformed = transform_data(img_read,
-                                        sk_keypoints,  # without tracking info
-                                        sk_kp_tracking_info,  # tracking info only
-                                        augment=True)
-                        
-                        # print(type(X), X.dtype, X.astype(np.uint8).dtype) # <class 'numpy.ndarray'> float64 uint8 
-                        # use astype to convert from float64 to uint8 
-                        skimage.io.imsave(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_aug_" + str(a) + "_240x320.jpg"), X.astype(np.uint8))
-                        
-                        np.save(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_aug_" + str(a) + "_paf30x40.npy"), y1)  # pafs
-                        
-                        np.save(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_aug_" + str(a) + "_heatmap30x40.npy"), y2)  # heatmaps
-                        
-                    ################################
                     
                     # for 20 (actually 19 + background) heatmaps =====================================
                     for kpn in range(sk_keypoints.shape[0]//2):
@@ -727,6 +694,42 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                     np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_paf30x40.npy"), paf)
             
                     
+                    if write_aug_imgs:
+                        ################################
+                        # save augmented (transformed) images and their ground truths
+                        for a in range(n_aug_per_image):
+                            # print("aug index", a)
+    #                         X = np.empty((EggnogGlobalConfig.height, EggnogGlobalConfig.width, 3), dtype=np.uint8)
+                            # print(type(X), X.dtype)  # uint8
+    #                         y1 = np.empty((EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.n_paf))
+    #                         y2 = np.empty((EggnogGlobalConfig.height//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor, EggnogGlobalConfig.n_hm))
+    #                         kp_transformed = np.empty((EggnogGlobalConfig.n_kp*2))  # (batch x (20-1)*2)  # e.g., 5x38
+
+                            # somehow feeding in img_down does not work! So this is a workaround
+                            img_read = skimage.io.imread(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_240x320.jpg"))
+                            sk_keypoints_with_tracking_info = rgb_skeleton_data[nearest_idx][1:]  # ignore index 0 (time)
+                            sk_kp_tracking_info = sk_keypoints_with_tracking_info[np.arange(0, sk_keypoints_with_tracking_info.size, 3)]  # only the info about tracking states (0, 1, 2) for 19 joints
+                            sk_keypoints = np.delete(sk_keypoints_with_tracking_info, np.arange(0, sk_keypoints_with_tracking_info.size, 3))  # this is without tracking info, by removing the tracking info
+
+                            # HAD to reread the sk_* becasue following transform data function modifies them for every call
+                            ### print("kp info", sk_keypoints, sk_kp_tracking_info)
+                            X, y1, y2, kp_transformed = transform_data(img_read,
+                                            sk_keypoints,  # without tracking info
+                                            sk_kp_tracking_info,  # tracking info only
+                                            augment=True)
+
+                            # print(type(X), X.dtype, X.astype(np.uint8).dtype) # <class 'numpy.ndarray'> float64 uint8 
+                            # use astype to convert from float64 to uint8 
+                            skimage.io.imsave(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_aug_" + str(a) + "_240x320.jpg"), X.astype(np.uint8))
+
+                            np.save(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_aug_" + str(a) + "_paf30x40.npy"), y1)  # pafs
+
+                            np.save(os.path.join(save_dir_augmented, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_aug_" + str(a) + "_heatmap30x40.npy"), y2)  # heatmaps
+
+                        ################################
+                    
+                    
+                    
                     # 4
                     # save the 2d keypoints of shape (38,) in original 1920x1080 space
                     # print(rgb_skeleton_data[nearest_idx])
@@ -737,7 +740,7 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
     print("mismatch_count =",  mismatch_count)
     
     
-def process_session(session_name):  
+def process_session(session_name, aug_folder_extension):  
     print("processing the session with path", eggnog_dataset_path + session_name)
     
     layout_sessions = [l for l in os.listdir(os.path.join(eggnog_dataset_path, session_name)) if "layout" in l]
@@ -769,7 +772,7 @@ def process_session(session_name):
 #             save_2d_keypoints_and_images_v1(video[:-4], video_file_path, npy_path, rgb_skeleton_data, frame_time_dict)
             
             # new version where augmentation is done and saved for every image. Also, tracking info is taken into consideration
-            save_2d_keypoints_and_images_v2(video[:-4], video_file_path, npy_path, rgb_skeleton_data, frame_time_dict)
+            save_2d_keypoints_and_images_v2(video[:-4], video_file_path, npy_path, rgb_skeleton_data, frame_time_dict, aug_folder_extension)
             
             
 
@@ -804,7 +807,7 @@ def test_heatmap_gen():
     print("(14, 18)", heatmap[14, 18])
     print("(14, 17)", heatmap[14, 17])
     (10, 17) 0.0001590283861762805
-    (14, 18) 0.03494073402815759  # hould be higher and it is, but image shows this pixel to be black
+    (14, 18) 0.03494073402815759  # should be higher and it is, but image shows this pixel to be black
     (14, 17) 0.008708841628440166
     """
 #     # show heatmap
@@ -838,11 +841,11 @@ if __name__ == "__main__":
     print("reading videos and writing img240x320, paf30x40, and hm30x40...")
     
     """
-    Usage: provide the session name as argument; the path of eggnog_dataset is needed to be set at the top as a global variable.
+    Usage: provide the session name as the first argument and name extension for "_augmented" folder as the second argument; the path of eggnog_dataset is needed to be set at the top as a global variable.
     """
+    assert(sys.argv[2] != "_augmented")  # _augmented_v1
+    process_session(sys.argv[1], sys.argv[2])
     
-    process_session(sys.argv[1])
-
 #     test_skeleton_reader()
 #     test_heatmap_gen()
 #     test_paf_gen()
