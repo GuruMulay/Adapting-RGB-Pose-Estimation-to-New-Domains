@@ -27,7 +27,7 @@ n_data_folders_per_layout = 4
 n_aug_images_per_frame = 5
 div_factor_aug = 5  # wiht 5 only _aug_0 is selected
 eggnog_meta_dir = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_meta/'
-
+verbose = False
 
 class Session:
 
@@ -86,21 +86,22 @@ class Session:
         pprint.pprint(self.layoutB_aug1_dict)
         """
         
-        self.print_layout_dict_stats(self.layoutA_dict, "self.layoutA_dict")
-        self.print_layout_dict_stats(self.layoutA_aug0_dict, "self.layoutA_aug0_dict")
-        self.print_layout_dict_stats(self.layoutA_aug1_dict, "self.layoutA_aug1_dict")
-        
-        self.print_layout_dict_stats(self.layoutB_dict, "self.layoutB_dict")
-        self.print_layout_dict_stats(self.layoutB_aug0_dict, "self.layoutB_aug0_dict")
-        self.print_layout_dict_stats(self.layoutB_aug1_dict, "self.layoutB_aug1_dict")
-    
+        if verbose:
+            self.print_layout_dict_stats(self.layoutA_dict, "self.layoutA_dict")
+            self.print_layout_dict_stats(self.layoutA_aug0_dict, "self.layoutA_aug0_dict")
+            self.print_layout_dict_stats(self.layoutA_aug1_dict, "self.layoutA_aug1_dict")
+
+            self.print_layout_dict_stats(self.layoutB_dict, "self.layoutB_dict")
+            self.print_layout_dict_stats(self.layoutB_aug0_dict, "self.layoutB_aug0_dict")
+            self.print_layout_dict_stats(self.layoutB_aug1_dict, "self.layoutB_aug1_dict")
+
     
     def populate_session_info(self,):
-        
         # populate only if not populated already
         # check if dicts are present already 
         dict_exists = [os.path.isfile(os.path.join(self.meta_dir, f + ".pkl")) for f in self.dict_list]
-        print("Does dicts exist", self.dict_list, dict_exists, all(dict_exists))
+        if verbose:
+            print("Does dicts exist", self.dict_list, dict_exists, all(dict_exists))
         if all(dict_exists):
             self.layoutA_dict = self.load_dict_pickle("layoutA_dict")
             self.layoutA_aug0_dict = self.load_dict_pickle("layoutA_aug0_dict")
@@ -108,7 +109,7 @@ class Session:
             self.layoutB_dict = self.load_dict_pickle("layoutB_dict")
             self.layoutB_aug0_dict = self.load_dict_pickle("layoutB_aug0_dict")
             self.layoutB_aug1_dict = self.load_dict_pickle("layoutB_aug1_dict")
-            print("Loaded dicts from the meta dir")
+            # print("Loaded dicts from the meta dir")
         else:
             # populate the dicts
             for ln, layout in enumerate(self.layouts):
@@ -166,7 +167,8 @@ class Session:
             
     def load_dict_pickle(self, name):
         with open(os.path.join(self.meta_dir, name + '.pkl'), 'rb') as f:
-            print("loading {} ...".format(os.path.join(self.meta_dir, name + '.pkl')))
+            if verbose:
+                print("loading {} ...".format(os.path.join(self.meta_dir, name + '.pkl')))
             return pickle.load(f)
     
     
@@ -218,7 +220,7 @@ class Session:
         imgs_per_layout = int(n_imgs/2)
         
         if not get_aug:
-            print("\nReading non-augmented folders ....................")
+            print("Reading non-augmented folders ...")
             # layout A
             n_videos_A = len(self.layoutA_dict.keys())
             total_frames_A = np.sum([len(self.layoutA_dict[k]) for k in self.layoutA_dict.keys()])
@@ -245,7 +247,7 @@ class Session:
             
             # layout A + layout B
             ret_frame_list = frame_list_A[0:imgs_per_layout] + frame_list_B[0:imgs_per_layout]  # crop the list to the limit of imgs_per_layout
-            print("\nlen(ret_frame_list) ========", len(ret_frame_list))
+            print("\nlen(ret_frame_list) =======", len(ret_frame_list))
             
             return ret_frame_list
         
@@ -257,16 +259,16 @@ class Session:
                 layoutA_aug_dict = self.layoutA_aug1_dict
                 layoutB_aug_dict = self.layoutB_aug1_dict
             
-            print("\nReading augmented version 0 folders ....................")
+            print("Reading augmented version {} folders ...".format(aug_version))
             # layout A aug0
             n_videos_A = len(layoutA_aug_dict.keys())
             total_frames_A = np.sum([len(layoutA_aug_dict[k]) for k in layoutA_aug_dict.keys()])/n_aug_images_per_frame  # the actual sum number is bloated n_aug_images_per_frame times; hence divide by n_aug_images_per_frame
             div_factor_A = int(total_frames_A/imgs_per_layout)
             div_factor_aug_A = div_factor_aug
             
-            print("\nlayoutA_aug0: div_factor", div_factor_A)
-            print("layoutA_aug0: distributing {} images into {} videos".format(imgs_per_layout, n_videos_A))
-            print("total number of frames from all videos of layout A _aug0 =", total_frames_A)
+            print("\nlayoutA: div_factor", div_factor_A)
+            print("layoutA: distributing {} images into {} videos".format(imgs_per_layout, n_videos_A))
+            print("total number of frames from all videos of layout A _aug {} =".format(aug_version), total_frames_A)
             
             frame_list_A = self.__get_image_list_from_dict_aug(layoutA_aug_dict, div_factor_A, div_factor_aug_A)
             print("Added n elements from layout A", len(frame_list_A))
@@ -280,14 +282,14 @@ class Session:
             
             print("\nlayoutB: div_factor", div_factor_B)
             print("layoutB: distributing {} images into {} videos".format(imgs_per_layout, n_videos_B))
-            print("total number of frames from all videos of layout B _aug0 =", total_frames_B)
+            print("total number of frames from all videos of layout B _aug {} =".format(aug_version), total_frames_B)
             
             frame_list_B = self.__get_image_list_from_dict_aug(layoutB_aug_dict, div_factor_B, div_factor_aug_B)
             print("Added n elements from layout B", len(frame_list_B))
             assert(len(frame_list_B) >= imgs_per_layout)
             
             ret_frame_list = frame_list_A[0:imgs_per_layout] + frame_list_B[0:imgs_per_layout]  # crop the list to the limit of imgs_per_layout
-            print("\nlen(ret_frame_list) ========", len(ret_frame_list))
+            print("\nlen(ret_frame_list) =======", len(ret_frame_list))
             
             return ret_frame_list
         

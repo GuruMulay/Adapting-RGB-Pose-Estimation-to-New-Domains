@@ -98,7 +98,7 @@ update_config_as_per_removed_joints()
 
 
 n_stages = 2
-train_in_finetune_mode = False
+train_in_finetune_mode = True
 preload_vgg = True
 split_sessionwise = 1  # 0 => version 0; 1 => version 1 with Session objects
 branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)  
@@ -157,12 +157,25 @@ if split_sessionwise == 1:
     n_train_imgs_per_session = int(n_train_imgs/len(train_sessions))
     n_val_imgs_per_session = int(n_val_imgs/len(val_sessions))
     
+    aug_fraction = 0.6  # use aug_fraction%of the images fropm aug set and remaining from original non_aug set
+    n_train_imgs_per_session_aug = int(aug_fraction*n_train_imgs_per_session)
+    n_train_imgs_per_session_nonaug = int((1-aug_fraction)*n_train_imgs_per_session)
+    n_val_imgs_per_session_aug = int(aug_fraction*n_val_imgs_per_session)
+    n_val_imgs_per_session_nonaug = int((1-aug_fraction)*n_val_imgs_per_session)
+    
+    
     print("train_sessions", train_sessions)
     print("val_sessions", val_sessions)
     print("n_train_imgs", n_train_imgs)
     print("n_val_imgs", n_val_imgs)
     print("n_train_imgs_per_session", n_train_imgs_per_session)
     print("n_val_imgs_per_session", n_val_imgs_per_session)
+    
+    print("aug_fraction", aug_fraction)
+    print("n_train_imgs_per_session_aug", n_train_imgs_per_session_aug)
+    print("n_train_imgs_per_session_nonaug", n_train_imgs_per_session_nonaug)
+    print("n_val_imgs_per_session_aug", n_val_imgs_per_session_aug)
+    print("n_val_imgs_per_session_nonaug", n_val_imgs_per_session_nonaug)
     
 
 print("------------------ Flags ----------------------------")
@@ -192,7 +205,7 @@ print("weight_decay", weight_decay)
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0703180100pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0705180100pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -406,24 +419,28 @@ def prepare_train_val_data_dict_object_based_version():
     partition_dict['train'] = []
     partition_dict['val'] = []
     
-    ## create Session objects and draw images
+    ## create Session objects and withdraw images
     for train_s in train_sessions:
-        print("train_s", train_s)
+        print("\ntrain_s ===============================", train_s)
         sess = Session(session_dir=os.path.join(eggnog_dataset_path, train_s), meta_dir=eggnog_meta_dir)
-        sess.print_session_info()
+        # sess.print_session_info()
         
-        # draw n_train_imgs_per_session examples from v0
-        train_list = sess.get_evenly_spaced_n_images(n_imgs=n_train_imgs_per_session, get_aug=True, aug_version="v0")
-        partition_train = partition_train + train_list
+        # draw n_train_imgs_per_session_aug examples from v0
+        train_list_aug = sess.get_evenly_spaced_n_images(n_imgs=n_train_imgs_per_session_aug, get_aug=True, aug_version="v0")
+        # draw n_train_imgs_per_session_nonaug examples from non_aug set
+        train_list_nonaug = sess.get_evenly_spaced_n_images(n_imgs=n_train_imgs_per_session_nonaug, get_aug=False, aug_version="")
+        partition_train = partition_train + train_list_aug + train_list_nonaug
     
     for val_s in val_sessions:
-        print("val_s", val_s)
+        print("\nval_s ==============================", val_s)
         sess = Session(session_dir=os.path.join(eggnog_dataset_path, val_s), meta_dir=eggnog_meta_dir)
-        sess.print_session_info()
+        # sess.print_session_info()
         
-        # draw n_val_imgs_per_session examples from v0
-        val_list = sess.get_evenly_spaced_n_images(n_imgs=n_val_imgs_per_session, get_aug=True, aug_version="v0")
-        partition_val = partition_val + val_list
+        # draw n_val_imgs_per_session_aug examples from v0
+        val_list_aug = sess.get_evenly_spaced_n_images(n_imgs=n_val_imgs_per_session_aug, get_aug=True, aug_version="v0")
+        # draw n_val_imgs_per_session_nonaug examples from non_aug set
+        val_list_nonaug = sess.get_evenly_spaced_n_images(n_imgs=n_val_imgs_per_session_nonaug, get_aug=False, aug_version="")
+        partition_val = partition_val + val_list_aug + val_list_nonaug
     
     print("After session objects draw: len(partition_train), len(partition_val)", len(partition_train), len(partition_val))
     
