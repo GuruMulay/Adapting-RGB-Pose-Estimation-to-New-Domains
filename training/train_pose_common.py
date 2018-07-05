@@ -42,6 +42,7 @@ remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 comm
 map_to_coco = True
 coco_type_masking = False
 add_imagenet_images = True
+imagenet_percent = 0.2
 crop_to_square = False  # crop the iamges and gt to a square shape
 # coco
 use_eggnong_common_joints = True
@@ -50,6 +51,8 @@ use_eggnong_common_joints = True
 
 # imagenet path
 imagenet_dir = '/s/red/a/nobackup/imagenet/images/train/'
+eggnog_meta_dir = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_meta/'
+
 
 #g
 verbose_print = True
@@ -97,7 +100,7 @@ update_config_as_per_removed_joints()
 n_stages = 2
 train_in_finetune_mode = False
 preload_vgg = True
-split_sessionwise = True
+split_sessionwise = 1  # 0 => version 0; 1 => version 1 with Session objects
 branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)  
 
 if branch_flag == 0 or branch_flag == 1:
@@ -128,31 +131,39 @@ partition_dict = {}
 
 
 # sessionwise split
-if split_sessionwise:
+if split_sessionwise == 0:
     train_sessions = ['s03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's17', 's21']
     val_sessions = ['s06', 's07', 's14', 's15']
-    n_train_imgs = 10000
-    n_val_imgs = 2000
-    n_train_imgs_per_session = n_train_imgs/len(train_sessions)
-    n_val_imgs_per_session = n_val_imgs/len(val_sessions)
     
-    """
     # only take 1/div_factor fraction of data
     div_factor_train = 20
     div_factor_val = 100
     div_factor_aug = 3  # there are 5 versions of every frame after augmentation (_0, 1, 2, 3, 4.jpg)
-    """
+    
+    print("train_sessions", train_sessions)
+    print("val_sessions", val_sessions)
+
+    print("div_factor_train", div_factor_train)
+    print("div_factor_val", div_factor_val)
+    print("div_factor_aug", div_factor_aug)
+
+    
+# sessionwise split
+if split_sessionwise == 1:
+    train_sessions = ['s03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's17', 's21']
+    val_sessions = ['s06', 's07', 's14', 's15']
+    n_train_imgs = 10000
+    n_val_imgs = 1000
+    n_train_imgs_per_session = int(n_train_imgs/len(train_sessions))
+    n_val_imgs_per_session = int(n_val_imgs/len(val_sessions))
     
     print("train_sessions", train_sessions)
     print("val_sessions", val_sessions)
     print("n_train_imgs", n_train_imgs)
     print("n_val_imgs", n_val_imgs)
+    print("n_train_imgs_per_session", n_train_imgs_per_session)
+    print("n_val_imgs_per_session", n_val_imgs_per_session)
     
-    """
-    print("div_factor_train", div_factor_train)
-    print("div_factor_val", div_factor_val)
-    print("div_factor_aug", div_factor_aug)
-    """
 
 print("------------------ Flags ----------------------------")
 print("train_in_finetune_mode", train_in_finetune_mode)
@@ -179,9 +190,9 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 print("weight_decay", weight_decay)
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0702180100pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0703180100pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -325,7 +336,7 @@ def prepare_train_val_data_dict_offline_version():
     partition_dict['train'] = []
     partition_dict['val'] = []
 
-    if split_sessionwise:
+    if split_sessionwise == 0:
         # go through sessions and add img path to lists
         # create train list
         for session_name in train_sessions:
@@ -354,10 +365,10 @@ def prepare_train_val_data_dict_offline_version():
                                 
     #####
     if add_imagenet_images:
-        # add random imagenet images without humans: 30% of len(partition_train), len(partition_val)
+        # add random imagenet images without humans: imagenet_percent% of len(partition_train), len(partition_val)
         imagenet = ImagenetImages(imagenet_dir)
-        imagenet_train = imagenet.get_n_images("train", int(0.3*len(partition_train)))
-        imagenet_val = imagenet.get_n_images("val", int(0.3*len(partition_val)))
+        imagenet_train = imagenet.get_n_images("train", int(imagenet_percent*len(partition_train)))
+        imagenet_val = imagenet.get_n_images("val", int(imagenet_percent*len(partition_val)))
         print("Before adding imagenet images:")
         print("len(partition_train), len(partition_val)", len(partition_train), len(partition_val))
         print("len(imagenet_train), len(imagenet_val)", len(imagenet_train), len(imagenet_val))
@@ -387,7 +398,7 @@ def prepare_train_val_data_dict_offline_version():
     print("partition dict train and val len", len(partition_dict['train']), len(partition_dict['val']))
 
 
-def prepare_train_val_data_dict_nbased_version():
+def prepare_train_val_data_dict_object_based_version():
     # new version for eggnog dataset where images are drawn from the session objects
     partition_train = []
     partition_val = []
@@ -396,15 +407,33 @@ def prepare_train_val_data_dict_nbased_version():
     partition_dict['val'] = []
     
     ## create Session objects and draw images
+    for train_s in train_sessions:
+        print("train_s", train_s)
+        sess = Session(session_dir=os.path.join(eggnog_dataset_path, train_s), meta_dir=eggnog_meta_dir)
+        sess.print_session_info()
+        
+        # draw n_train_imgs_per_session examples from v0
+        train_list = sess.get_evenly_spaced_n_images(n_imgs=n_train_imgs_per_session, get_aug=True, aug_version="v0")
+        partition_train = partition_train + train_list
     
+    for val_s in val_sessions:
+        print("val_s", val_s)
+        sess = Session(session_dir=os.path.join(eggnog_dataset_path, val_s), meta_dir=eggnog_meta_dir)
+        sess.print_session_info()
+        
+        # draw n_val_imgs_per_session examples from v0
+        val_list = sess.get_evenly_spaced_n_images(n_imgs=n_val_imgs_per_session, get_aug=True, aug_version="v0")
+        partition_val = partition_val + val_list
+    
+    print("After session objects draw: len(partition_train), len(partition_val)", len(partition_train), len(partition_val))
     
     
     #####
     if add_imagenet_images:
-        # add random imagenet images without humans: 30% of len(partition_train), len(partition_val)
+        # add random imagenet images without humans: imagenet_percent% of len(partition_train), len(partition_val)
         imagenet = ImagenetImages(imagenet_dir)
-        imagenet_train = imagenet.get_n_images("train", int(0.2*len(partition_train)))
-        imagenet_val = imagenet.get_n_images("val", int(0.2*len(partition_val)))
+        imagenet_train = imagenet.get_n_images("train", int(imagenet_percent*len(partition_train)))
+        imagenet_val = imagenet.get_n_images("val", int(imagenet_percent*len(partition_val)))
         print("Before adding imagenet images:")
         print("len(partition_train), len(partition_val)", len(partition_train), len(partition_val))
         print("len(imagenet_train), len(imagenet_val)", len(imagenet_train), len(imagenet_val))
@@ -413,6 +442,7 @@ def prepare_train_val_data_dict_nbased_version():
         partition_train = partition_train + imagenet_train
         partition_val = partition_val + imagenet_val
     #####
+    
     
     # shuffle train and val list
     random.seed(115)
@@ -426,10 +456,13 @@ def prepare_train_val_data_dict_nbased_version():
     for i, img in enumerate(partition_val):
         partition_dict['val'].append(img)
 
-# old version where frames were drawn without creating session objects 
-# prepare_train_val_data_dict_offline_version()
 
 
+if split_sessionwise == 0:  # old version where frames were drawn without creating session objects
+    prepare_train_val_data_dict_offline_version()
+elif split_sessionwise == 1:  # using Session objects to draw images
+    prepare_train_val_data_dict_object_based_version()
+    
 
 ## Generators ##############################################
 
