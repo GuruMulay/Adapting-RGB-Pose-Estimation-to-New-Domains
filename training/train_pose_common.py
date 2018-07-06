@@ -40,10 +40,12 @@ This version trains on both COCO and EGGNOG simultaneously and val sets are 2: o
 # for common set of joints between eggnog and coco
 remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common joints
 map_to_coco = True
-coco_type_masking = False
+coco_type_masking = True
 add_imagenet_images = True
-imagenet_percent = 0.2
-crop_to_square = False  # crop the iamges and gt to a square shape
+imagenet_fraction = 0.2
+
+
+crop_to_square = False  # crop the images and gt to a square shape
 # coco
 use_eggnong_common_joints = True
 # for removing 6 joints on two hands
@@ -98,7 +100,7 @@ update_config_as_per_removed_joints()
 
 
 n_stages = 2
-train_in_finetune_mode = True
+train_in_finetune_mode = False
 preload_vgg = True
 split_sessionwise = 1  # 0 => version 0; 1 => version 1 with Session objects
 branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)  
@@ -157,7 +159,7 @@ if split_sessionwise == 1:
     n_train_imgs_per_session = int(n_train_imgs/len(train_sessions))
     n_val_imgs_per_session = int(n_val_imgs/len(val_sessions))
     
-    aug_fraction = 0.6  # use aug_fraction%of the images fropm aug set and remaining from original non_aug set
+    aug_fraction = 0.6  # use aug_fraction% of the images from aug set and remaining from original non_aug set
     n_train_imgs_per_session_aug = int(aug_fraction*n_train_imgs_per_session)
     n_train_imgs_per_session_nonaug = int((1-aug_fraction)*n_train_imgs_per_session)
     n_val_imgs_per_session_aug = int(aug_fraction*n_val_imgs_per_session)
@@ -191,7 +193,16 @@ print("crop_to_square", crop_to_square)
 print("------------------ Flags ----------------------------")
 
 
-batch_size = 5
+batch_size = 20
+coco_fraction = 0.05
+eggnog_fraction = 1 - coco_fraction
+
+coco_batch_size = int(batch_size*coco_fraction)
+print("coco_batch_size", coco_batch_size)
+assert(coco_batch_size>=1)
+eggnog_batch_size = int(batch_size*eggnog_fraction)
+print("eggnog_batch_size", eggnog_batch_size)
+
 base_lr = 1e-5
 momentum = 0.9
 weight_decay = 5e-2
@@ -205,7 +216,7 @@ print("weight_decay", weight_decay)
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0705180100pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0706180400pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -328,7 +339,7 @@ params = {'data_path': eggnog_dataset_path,
           'height': 240,
           'width': 320,
           'n_channels': 3,
-          'batch_size': batch_size,
+          'batch_size': eggnog_batch_size,
           'paf_height': 30,
           'paf_width': 40,
           'paf_n_channels': EggnogGlobalConfig.n_paf,
@@ -378,10 +389,10 @@ def prepare_train_val_data_dict_offline_version():
                                 
     #####
     if add_imagenet_images:
-        # add random imagenet images without humans: imagenet_percent% of len(partition_train), len(partition_val)
+        # add random imagenet images without humans: imagenet_fraction% of len(partition_train), len(partition_val)
         imagenet = ImagenetImages(imagenet_dir)
-        imagenet_train = imagenet.get_n_images("train", int(imagenet_percent*len(partition_train)))
-        imagenet_val = imagenet.get_n_images("val", int(imagenet_percent*len(partition_val)))
+        imagenet_train = imagenet.get_n_images("train", int(imagenet_fraction*len(partition_train)))
+        imagenet_val = imagenet.get_n_images("val", int(imagenet_fraction*len(partition_val)))
         print("Before adding imagenet images:")
         print("len(partition_train), len(partition_val)", len(partition_train), len(partition_val))
         print("len(imagenet_train), len(imagenet_val)", len(imagenet_train), len(imagenet_val))
@@ -447,10 +458,10 @@ def prepare_train_val_data_dict_object_based_version():
     
     #####
     if add_imagenet_images:
-        # add random imagenet images without humans: imagenet_percent% of len(partition_train), len(partition_val)
+        # add random imagenet images without humans: imagenet_fraction% of len(partition_train), len(partition_val)
         imagenet = ImagenetImages(imagenet_dir)
-        imagenet_train = imagenet.get_n_images("train", int(imagenet_percent*len(partition_train)))
-        imagenet_val = imagenet.get_n_images("val", int(imagenet_percent*len(partition_val)))
+        imagenet_train = imagenet.get_n_images("train", int(imagenet_fraction*len(partition_train)))
+        imagenet_val = imagenet.get_n_images("val", int(imagenet_fraction*len(partition_val)))
         print("Before adding imagenet images:")
         print("len(partition_train), len(partition_val)", len(partition_train), len(partition_val))
         print("len(imagenet_train), len(imagenet_val)", len(imagenet_train), len(imagenet_val))
@@ -495,16 +506,16 @@ val_samples_eggnog = len(partition_dict['val'])  # 30  # 2476  len(partition_dic
 print("#### train_samples_eggnog, val_samples_eggnog", train_samples_eggnog, val_samples_eggnog)
 # For eggnog full/5 => partition dict train and val len 88334 29879
 
-# ### COCO
-# train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=batch_size)
-# val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=batch_size)
+### COCO
+train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=coco_batch_size)
+val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=coco_batch_size)
 
-# train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
-# val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
 
-# train_samples_coco = 10000  # 117576  # 100  # 
-# val_samples_coco = 1000  # 2476  # 30  # 
-# print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
+train_samples_coco = int(coco_fraction*train_samples_eggnog)  # 117576  # 100  # 
+val_samples_coco = int(coco_fraction*val_samples_eggnog)  # 2476  # 30  # 
+print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
 
 ## combined
 # ##1 train with only coco
@@ -514,15 +525,15 @@ print("#### train_samples_eggnog, val_samples_eggnog", train_samples_eggnog, val
 # val_samples_eggnog = 0
 # ##
 
-##2 train with only eggnog
-train_di_coco = None
-val_di_coco = None
-train_samples_coco = 0
-val_samples_coco = 0
-##
+# ##2 train with only eggnog
+# train_di_coco = None
+# val_di_coco = None
+# train_samples_coco = 0
+# val_samples_coco = 0
+# ##
 
-train_gen_common = DataGenCommon(train_di_eggnog, train_di_coco)
-val_gen_common = DataGenCommon(val_di_eggnog, val_di_coco)
+train_gen_common = DataGenCommon(train_di_eggnog, train_di_coco, eggnog_batch_size, coco_batch_size, n_stages)
+val_gen_common = DataGenCommon(val_di_eggnog, val_di_coco, eggnog_batch_size, coco_batch_size, n_stages)
 
 train_di = train_gen_common.gen_common()
 val_di = val_gen_common.gen_common()

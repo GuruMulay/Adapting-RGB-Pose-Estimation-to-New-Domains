@@ -19,9 +19,13 @@ save_transformed_path = None  #  '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_t
 
 class DataGenCommon:
     
-    def __init__(self, data_gen_eggnog, data_gen_coco):
+    def __init__(self, data_gen_eggnog, data_gen_coco, eggnog_batch_size, coco_batch_size, n_stages):
         self.data_gen_eggnog = data_gen_eggnog
         self.data_gen_coco = data_gen_coco
+        self.eggnog_batch_size = eggnog_batch_size
+        self.coco_batch_size = coco_batch_size
+        self.n_stages = n_stages
+        
         self.records = 0
         self.records_eggnog = 0
         self.records_coco = 0
@@ -72,16 +76,38 @@ class DataGenCommon:
             if self.data_gen_coco is None and tuple_eggnog is not None:
                 # print("Only eggnog data returned")
                 return tuple_eggnog
-            
-            if self.records%5 == 0 and tuple_coco is not None:
-                self.records_coco += 1
-                # print("self.records_coco and tpl len", self.records_coco, len(tuple_coco), type(tuple_coco))  # self.records and tpl len 8 2 <class 'tuple'>
-                return tuple_coco
-            
-            else:  #  self.records%2 == 0 and tuple_eggnog is not None:
+                
+            if self.data_gen_eggnog is not None and self.data_gen_coco is not None:
+                # replace eggnog batch's randomly selected sample with the coco's sample
+#                 assert(tuple_eggnog[0][0].shape[0] == self.eggnog_batch_size)
+#                 assert(tuple_coco[0][0].shape[0] == self.coco_batch_size)
+#                 assert((tuple_coco[1][0] == tuple_coco[1][1]).all())
+#                 assert((tuple_eggnog[1][0] == tuple_eggnog[1][1]).all())
+                
+#                 print("tuple_eggnog 00 01 10 11", tuple_eggnog[0][0].shape, tuple_eggnog[0][1].shape, tuple_eggnog[1][0].shape, tuple_eggnog[1][1].shape)  # (5, 240, 320, 3) (5, 30, 40, 11) (5, 30, 40, 11) (5, 30, 40, 11)
+#                 print("tuple_coco 00 01 10 11", tuple_coco[0][0].shape, tuple_coco[0][1].shape, tuple_coco[1][0].shape, tuple_coco[1][1].shape)  # (5, 368, 368, 3) (5, 46, 46, 11) (5, 46, 46, 11) (5, 46, 46, 11)
+                
+                idx = np.random.randint(self.eggnog_batch_size)  # batch size (e.g., 5 or 10)
+                
+                X = np.insert(tuple_eggnog[0][0], idx, tuple_coco[0][0][:,64:368-64,24:368-24,:], axis=0)
+                mask_in = np.insert(tuple_eggnog[0][1], idx, tuple_coco[0][1][:,8:46-8,3:46-3,:], axis=0)
+                
+                y = np.insert(tuple_eggnog[1][0], idx, tuple_coco[1][0][:,8:46-8,3:46-3,:], axis=0)
+                
+                # print("X.shape, mask_in.shape, y.shape", X.shape, mask_in.shape, y.shape)
+                
+                return [X, mask_in], [y] * self.n_stages
+                
+                
+            if self.records%2 == 0 and tuple_eggnog is not None:
                 self.records_eggnog += 1
                 # print("self.records_eggnog and tpl len", self.records_eggnog, len(tuple_eggnog), type(tuple_eggnog))  # self.records and tpl len 8 2 <class 'tuple'>
                 return tuple_eggnog
+            
+            if self.records%2 == 1 and tuple_coco is not None:
+                self.records_coco += 1
+                # print("self.records_coco and tpl len", self.records_coco, len(tuple_coco), type(tuple_coco))  # self.records and tpl len 8 2 <class 'tuple'>
+                return tuple_coco
             
             
 class DataIteratorBase:
