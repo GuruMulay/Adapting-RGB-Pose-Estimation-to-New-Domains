@@ -40,7 +40,7 @@ This version trains on both COCO and EGGNOG simultaneously and val sets are 2: o
 # for common set of joints between eggnog and coco
 remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common joints
 map_to_coco = True
-coco_type_masking = True
+coco_type_masking = False
 add_imagenet_images = True
 imagenet_fraction = 0.2
 
@@ -154,8 +154,8 @@ if split_sessionwise == 0:
 if split_sessionwise == 1:
     train_sessions = ['s03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's17', 's21']
     val_sessions = ['s06', 's07', 's14', 's15']
-    n_train_imgs = 10000
-    n_val_imgs = 1000
+    n_train_imgs = 40000
+    n_val_imgs = 4000
     n_train_imgs_per_session = int(n_train_imgs/len(train_sessions))
     n_val_imgs_per_session = int(n_val_imgs/len(val_sessions))
     
@@ -193,13 +193,13 @@ print("crop_to_square", crop_to_square)
 print("------------------ Flags ----------------------------")
 
 
-batch_size = 20
-coco_fraction = 0.05
+batch_size = 10
+coco_fraction = 0.0
 eggnog_fraction = 1 - coco_fraction
 
 coco_batch_size = int(batch_size*coco_fraction)
 print("coco_batch_size", coco_batch_size)
-assert(coco_batch_size>=1)
+# assert(coco_batch_size>=1)
 eggnog_batch_size = int(batch_size*eggnog_fraction)
 print("eggnog_batch_size", eggnog_batch_size)
 
@@ -214,9 +214,9 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 print("weight_decay", weight_decay)
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0706180400pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0711180300pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -506,16 +506,16 @@ val_samples_eggnog = len(partition_dict['val'])  # 30  # 2476  len(partition_dic
 print("#### train_samples_eggnog, val_samples_eggnog", train_samples_eggnog, val_samples_eggnog)
 # For eggnog full/5 => partition dict train and val len 88334 29879
 
-### COCO
-train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=coco_batch_size)
-val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=coco_batch_size)
+# ### COCO
+# train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=coco_batch_size)
+# val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=coco_batch_size)
 
-train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
-val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+# train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+# val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
 
-train_samples_coco = int(coco_fraction*train_samples_eggnog)  # 117576  # 100  # 
-val_samples_coco = int(coco_fraction*val_samples_eggnog)  # 2476  # 30  # 
-print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
+# train_samples_coco = int(coco_fraction*train_samples_eggnog)  # 117576  # 100  # 
+# val_samples_coco = int(coco_fraction*val_samples_eggnog)  # 2476  # 30  # 
+# print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
 
 ## combined
 # ##1 train with only coco
@@ -525,12 +525,12 @@ print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_sampl
 # val_samples_eggnog = 0
 # ##
 
-# ##2 train with only eggnog
-# train_di_coco = None
-# val_di_coco = None
-# train_samples_coco = 0
-# val_samples_coco = 0
-# ##
+##2 train with only eggnog
+train_di_coco = None
+val_di_coco = None
+train_samples_coco = 0
+val_samples_coco = 0
+##
 
 train_gen_common = DataGenCommon(train_di_eggnog, train_di_coco, eggnog_batch_size, coco_batch_size, n_stages)
 val_gen_common = DataGenCommon(val_di_eggnog, val_di_coco, eggnog_batch_size, coco_batch_size, n_stages)

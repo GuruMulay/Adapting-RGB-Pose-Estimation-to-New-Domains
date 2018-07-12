@@ -8,6 +8,9 @@ from keras.regularizers import l2
 from keras.initializers import random_normal, constant
 import numpy as np
 
+# dropout
+from keras.layers import SpatialDropout2D
+
 from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig
 
 # stages = 6  # removed for only 1 staged model testing on eggnog
@@ -31,7 +34,13 @@ def conv(x, nf, ks, name, weight_decay):
                bias_regularizer=bias_reg,
                kernel_initializer=random_normal(stddev=0.01),
                bias_initializer=constant(0.0))(x)
+    
+    # added spatial dropout (7/11)
+    # print("Added spatial dropout")
+    x = SpatialDropout2D(rate=0.2, data_format='channels_last')(x)
+
     return x
+
 
 def pooling(x, ks, st, name):
     x = MaxPooling2D((ks, ks), strides=(st, st), name=name)(x)
@@ -105,8 +114,14 @@ def stage1_block(x, num_p, branch, weight_decay):
     x = conv(x, 512, 1, "conv5_4_CPM_L%d" % branch, (weight_decay, 0))  # _28
     x = relu(x)
     x = conv(x, num_p, 1, "conv5_5_CPM_L%d_EGGNOG" % branch, (weight_decay, 0))  # _26
-
+    
+#     # added spatial dropout (7/10)
+#     print("Added spatial dropout")
+#     x = SpatialDropout2D(rate=0.5, data_format='channels_last')(x)
+    
     return x
+
+
 
 """
 Renamed 1st conv layer in following method (for stage 2 onwards) because original paper has 128 (from VGG) + 38 (pafs) + 19 (hms) = 185 chanelled image (46x46) at the end of stage 1 or even stage n. So the saved weights for this conv layer has a shape of [128, 185, 7, 7] when loaded using load_weights(by_name=True). With eggnog dataset n_channels at the end of stage 1 or stage n is 128 (from VGG) + 36 (pafs) + 20 (hms) = 184 or less depending on the branch_flag [branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)]. Therefore, the original weights from model.h5 for 1st conv layer at each stage (>1) cannot be loaded into this modified eggnog weights which are shaped (184, 128, 7, 7). So, we need to rename these layers to avoid loading the weights by name.
@@ -128,6 +143,10 @@ def stageT_block(x, num_p, stage, branch, weight_decay):
     x = relu(x)
     x = conv(x, num_p, 1, "Mconv7_stage%d_L%d_EGGNOG" % (stage, branch), (weight_decay, 0))
 
+#     # added spatial dropout (7/10)
+#     print("Added spatial dropout")
+#     x = SpatialDropout2D(rate=0.5, data_format='channels_last')(x)
+    
     return x
 
 
@@ -539,7 +558,7 @@ def get_training_model_common(weight_decay, gpus=None, stages=6, branch_flag=0):
 #     return model
 
 
-def get_testing_model_eggnog(stages=6):
+def get_testing_model_eggnog_v1(stages=2, branch_flag=2):
 
     img_input_shape = (None, None, 3)
     inputs = []
@@ -547,39 +566,90 @@ def get_testing_model_eggnog(stages=6):
     
     img_input = Input(shape=img_input_shape)
     inputs.append(img_input)
-    print(img_input)
-    img_normalized = Lambda(lambda x: x / 256 - 0.5)(img_input) # [-0.5, 0.5]
-    print("##### img_normlaized ", np.max(img_normalized ), np.min(img_normalized ))
+    
+    img_normalized = Lambda(lambda x: x / 256 - 0.5)(img_input)
+#     print("##### img_normlaized ", np.max(img_normalized ), np.min(img_normalized))
+    
     # VGG
     stage0_out = vgg_block(img_normalized, None)
 
-    # stage 1 - branch 1 (PAF)
-    stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, None)
-
-    # stage 1 - branch 2 (confidence maps)
-    stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, None)
-
-    x = Concatenate()([stage1_branch1_out, stage1_branch2_out, stage0_out])
     
-    outputs.append(stage1_branch1_out)
-    outputs.append(stage1_branch2_out)
-    
-    # stage t >= 2
-    stageT_branch1_out = None
-    stageT_branch2_out = None
-    for sn in range(2, stages + 1):
-        stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, None)
-        stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, None)
-        
-        outputs.append(stageT_branch1_out)
-        outputs.append(stageT_branch2_out)
-        
-        if (sn < stages):
-            x = Concatenate()([stageT_branch1_out, stageT_branch2_out, stage0_out])
+    if branch_flag == 0:  # heatmaps and pafs both
+        # stage 1
+        stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, None)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, None)
+        x = Concatenate()([stage1_branch1_out, stage1_branch2_out, stage0_out])
 
-    model = Model(inputs=inputs, outputs=outputs)
+        # stage t >= 2
+        for sn in range(2, stages + 1):
+            stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, None)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, None)
+            if (sn < stages):
+                x = Concatenate()([stageT_branch1_out, stageT_branch2_out, stage0_out])
+
+        model = Model(img_input, [stageT_branch1_out, stageT_branch2_out])
+        
+    elif branch_flag == 2:  # heatmaps only
+        # stage 1
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, None)
+        x = Concatenate()([stage1_branch2_out, stage0_out])
+
+        # stage t >= 2
+        for sn in range(2, stages + 1):
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, None)
+            if (sn < stages):
+                x = Concatenate()([stageT_branch2_out, stage0_out])
+
+        model = Model(img_input, [stageT_branch2_out])
+
+    else:
+        raise NotImplementedError("Only-paf network is not implemented")
+    
 
     return model
+
+
+# def get_testing_model_eggnog(stages=6):
+
+#     img_input_shape = (None, None, 3)
+#     inputs = []
+#     outputs = []
+    
+#     img_input = Input(shape=img_input_shape)
+#     inputs.append(img_input)
+#     print(img_input)
+#     img_normalized = Lambda(lambda x: x / 256 - 0.5)(img_input) # [-0.5, 0.5]
+#     print("##### img_normlaized ", np.max(img_normalized ), np.min(img_normalized ))
+#     # VGG
+#     stage0_out = vgg_block(img_normalized, None)
+
+#     # stage 1 - branch 1 (PAF)
+#     stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, None)
+
+#     # stage 1 - branch 2 (confidence maps)
+#     stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, None)
+
+#     x = Concatenate()([stage1_branch1_out, stage1_branch2_out, stage0_out])
+    
+#     outputs.append(stage1_branch1_out)
+#     outputs.append(stage1_branch2_out)
+    
+#     # stage t >= 2
+#     stageT_branch1_out = None
+#     stageT_branch2_out = None
+#     for sn in range(2, stages + 1):
+#         stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, None)
+#         stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, None)
+        
+#         outputs.append(stageT_branch1_out)
+#         outputs.append(stageT_branch2_out)
+        
+#         if (sn < stages):
+#             x = Concatenate()([stageT_branch1_out, stageT_branch2_out, stage0_out])
+
+#     model = Model(inputs=inputs, outputs=outputs)
+
+#     return model
 
 
 def get_testing_model(stages=6):
