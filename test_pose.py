@@ -3,7 +3,7 @@ import os
 import numpy as np
 sys.path.append("..")
 from glob import glob
-
+import pprint
 from model import get_testing_model_eggnog_v1
 
 # 
@@ -25,6 +25,9 @@ import util
 
 from scipy.ndimage.filters import gaussian_filter
 
+# for metrics
+
+
 from operator import itemgetter
 
 np_branch1 = 18  # 18 (keeping only common joints and paf pairs) # 38
@@ -41,7 +44,7 @@ eggnog_meta_dir = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_meta/'
 
 
 add_imagenet_images = True
-imagenet_fraction = 0.1
+imagenet_fraction = 0.0
 
 eggnog_testing = True
 
@@ -49,7 +52,16 @@ calculate_loss = True
 hm_save = False  # save predicted hms to disk
 kp_save = True
 
-verbose = False
+verbose = True
+verbose_pck = False
+
+
+random_seed = 115
+
+##### since kinect RGBskeleton.txt itself contains the locations of joints in the format of float pixel numbers instead of discrete pixel numbers, the ground truth is more precise with floats rather than ints 
+### IMP whether to keep or not
+# roundof_pred = True
+
 
 def eucl_loss_np(x, y):
     l = np.sum(np.square(x - y))  
@@ -99,7 +111,7 @@ class Test:
         ##### ========================================= #####
         self.test_sessions = ['s18', 's19']
         self.n_test_imgs = 5000
-        self.len_test_set = 10
+        self.len_test_set = 20
         self.aug_fraction = 0.0  # use aug_fraction % of the images from aug set and remaining from original non_aug set
                 
         # loss calc
@@ -107,9 +119,19 @@ class Test:
         self.total_test_samples = 0 
         
         # pck calculations
-        self.pck_at = [0.1, 0.2, 0.3]  # @_, @_, and @_
+        self.metric_type = ["PCK", "PCKh", "AP"]
         self.n_hm = 10  # 10 joints
-        self.pck_mat = np.zeros((self.n_hm, len(self.pck_at)))
+        
+        # for pck
+        self.pck_at = [0.1, 0.2, 0.3]  # @_, @_, and @_
+        self.pck_mat_all = np.zeros((self.n_hm, len(self.pck_at), self.len_test_set))  # 10, 3, 1000
+        self.pck_mat_avg = np.zeros((self.n_hm, len(self.pck_at)))
+        
+        # for pckh
+        self.pckh_h_factor = 0.5
+        self.pckh_mat_all = np.zeros((self.n_hm, 1, self.len_test_set))  # 10, 1, 1000
+        self.pckh_mat_avg = np.zeros((self.n_hm, 1))  # 10, 1
+        
         
         
         # CONFIG PARAMETERS
@@ -208,28 +230,91 @@ class Test:
         #####
 
         # shuffle test list
-        random.seed(115)
+        random.seed(random_seed)
         random.shuffle(partition_test)
 
         # create test dict
         for i, img in enumerate(partition_test):
-            self.partition_dict['test'].append(img)
-            if verbose: print("", i, img)
             if i >= self.len_test_set:
                 break
+                
+            self.partition_dict['test'].append(img)
+            if verbose: print("image i", i, img)
+            
         
         self.total_test_samples = len(self.partition_dict['test'])
         print("\n##### final test_samples", len(self.partition_dict['test']))
 
     
-    def calculate_pck(self, gt_kp, pred_kp):
-        print(" >>>>>>>> gt_kp.shape, pred_kp.shape", gt_kp.shape, pred_kp.shape)
-        pck_mat_img = np.zeros(self.pck_mat.shape)
+    def distAB(self, pointA, pointB):
+        """
+        pointA and B: should be np.array([x, y])
+        """
+        return np.linalg.norm(pointA - pointB)
+    
+    
+#     def check_if_within_ditance_d(self, pointA, pointB, d):
+#         """
+#         pointA: ground truth point (x, y)
+#         pointB: predicted point (x, y)
+#         d: self.pckh_h_factor*h (h in PCKh metric)
+#         """
+#         if pdist(np.array([pointA, pointB])) < d:
+#             return True
+#         else:
+#             return False 
         
-        for m in self.pck_at:
-            print("measuring pck at", m)
         
-        return pck_mat_img
+    def get_len_head_segment(self, head_xy, spine_shoulder_xy):
+        len_h = self.distAB(np.array(head_xy), np.array(spine_shoulder_xy))
+        return len_h
+    
+    
+    def print_pck_mats(self,):
+        print("self.pckh_mat_all\n", self.pckh_mat_all)
+        print("self.pckh_mat_avg\n", self.pckh_mat_avg)
+        
+        
+    def calculate_pck(self, idx, gt_kp, pred_kp):
+        if verbose_pck: 
+            print(" >>>>>>>> gt_kp.shape, pred_kp.shape", gt_kp.shape, pred_kp.shape)
+            print(" >>>>>>>>\n", gt_kp, "\n\n", pred_kp)
+            print("checking if anything is nan in the ground truth")
+        assert(not np.isnan(gt_kp).any())
+        
+        pckh_mat_img = np.zeros(self.pck_mat_avg.shape)
+        pck_mat_img = np.zeros(self.pck_mat_avg.shape)
+        
+        for metric in self.metric_type:
+            if metric == "PCKh":
+                if verbose_pck: print("calculating PCKh (w.r.t. head segment)")
+                # check if head and spine shoulder are not nan
+                head_xy = gt_kp[0]
+                spine_shoulder_xy = gt_kp[1]
+                if verbose_pck: print("gt head_xy, spine_shoulder_xy", head_xy, spine_shoulder_xy)
+                assert(not np.isnan(head_xy).any())
+                assert(not np.isnan(spine_shoulder_xy).any())
+                
+                len_head_seg = self.get_len_head_segment(head_xy, spine_shoulder_xy)
+                assert(len_head_seg > 0)
+                if verbose_pck: print("PCKh h len_head_seg =", len_head_seg)
+                
+                # comapare the gt and pred in pairwise manner and find the distances between pairs (n_hm pairs)
+                pckh_mat_img = np.sqrt(np.sum(np.square(gt_kp - pred_kp[:, 0:2]), axis=1))
+                # threshold based on whether the points are within 0.5*len_head_seg distance of each other
+                pckh_mat_img = np.array([1 if d <= self.pckh_h_factor*len_head_seg else 0 for d in pckh_mat_img])
+                pckh_mat_img = pckh_mat_img[:, np.newaxis]  # from (10,) to (10,1)
+                
+                # set the calculated pckh_mat_img to the idx of self.pckh_mat_all
+                # print("", self.pckh_mat_all[:, :, idx].shape, pckh_mat_img.shape)
+                self.pckh_mat_all[:, :, idx] = pckh_mat_img
+                if verbose_pck: print("pckh_mat_img\n", pckh_mat_img)
+                
+#             if metric == "PCK":
+#                 for m in self.pck_at:
+#                     print("measuring pck at", m)
+        
+#         return None
     
         
     def calculate_loss(self, test_image, heatmap_avg_pred):
@@ -310,8 +395,8 @@ class Test:
         return all_peaks
     
         
-    def process_img(self, test_image):
-        print("\nprocessing img =========", test_image)
+    def process_img(self, idx, test_image):
+        # print("\nprocessing img =========", test_image)
         # print("map listed", *self.param['scale_search'])
         # print("process img param", self.param)
 
@@ -393,6 +478,10 @@ class Test:
         ### finding the actual kp locations
         all_peaks = self.find_peaks_per_predicted_hm(heatmap_avg)
         
+        # round of pred to nearest pixel number
+#         if roundof_pred:
+#             all_peaks = np.around(all_peaks)
+        
         # write the predicted kps to disk
         if kp_save:
             # print("BASE_DIR_TEST_KP", self.BASE_DIR_TEST_KP)
@@ -405,42 +494,51 @@ class Test:
             kpi = np.load(gt_kp_npy)  # gt_kp = np.reshape(gt_kp, (len(gt_kp)/3, 3))
             gt_kp = np.delete(kpi, np.arange(0, kpi.size, 3))
             gt_kp_240x320 = keypoint_transform_to_240x320_image(gt_kp, flip=False)
-            print("gt kp", gt_kp, gt_kp.shape)
-            print("gt kp 240x320", gt_kp_240x320.shape)
+            # print("gt kp", gt_kp.shape)
+            # print("gt kp 240x320", gt_kp_240x320.shape)
             
             # convert (38,) to (19,2)
             gt_kp_240x320 = np.reshape(gt_kp_240x320, (int(len(gt_kp_240x320)/2), 2))
-            print("gt kp 240x320", gt_kp_240x320.shape)
+            # print("gt kp 240x320", gt_kp_240x320.shape)
            
             # select coco 10 joints
             gt_kp_240x320_10joints = gt_kp_240x320[EggnogGlobalConfig.eggnog19_to_coco_10_mapping]
-            print("gt kp 240x320 10joints", gt_kp_240x320_10joints.shape)
+            # print("gt kp 240x320 10 joints", gt_kp_240x320_10joints.shape)
             
         else:
             gt_kp_240x320_10joints = np.full((np_branch2-1, 2), np.nan)
-            print("gt kp 240x320_10joints with all np.nan", gt_kp_240x320_10joints.shape)
+            # print("gt kp 240x320_10joints with all np.nan", gt_kp_240x320_10joints.shape)
             
-        pck_mat_img = self.calculate_pck(gt_kp=gt_kp_240x320_10joints, pred_kp=all_peaks)
+        self.calculate_pck(idx, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks))
         
+               
         
         return loss_hm
                 
                                       
     def run_test_on_imgs(self,):
         total_loss = 0
+        print("len self.partition_dict['test']", len(self.partition_dict['test']))
         for idx, img in enumerate(self.partition_dict['test']):
             if "train_set" in img:
                 image = os.path.join(imagenet_dir, img)
             else:
                 image = os.path.join(eggnog_dataset_path, img + '_240x320.jpg')
 
-            # print("reading", idx, image)
-            total_loss = total_loss + self.process_img(image)
+            print("\n reading and processing", idx, image)
+            total_loss = total_loss + self.process_img(idx, image)
         
         self.total_loss = total_loss
         print("\nself.total_loss, self.total_test_samples", self.total_loss, self.total_test_samples)
         print("total_loss average", self.total_loss/self.total_test_samples)
-                                      
+        
+        
+        # find average across all test examples
+        self.pckh_mat_avg = np.mean(self.pckh_mat_all, axis=2)
+        
+        # finally print
+        self.print_pck_mats()
+        
         
         
 if __name__ == "__main__":
