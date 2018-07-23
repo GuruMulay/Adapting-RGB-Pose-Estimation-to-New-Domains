@@ -26,7 +26,7 @@ import util
 from scipy.ndimage.filters import gaussian_filter
 
 # for metrics
-
+import matplotlib.pyplot as plt
 
 from operator import itemgetter
 
@@ -34,7 +34,7 @@ np_branch1 = 18  # 18 (keeping only common joints and paf pairs) # 38
 np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
 
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="3"
 
 EXP_BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/"
 eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
@@ -52,15 +52,22 @@ calculate_loss = True
 hm_save = False  # save predicted hms to disk
 kp_save = True
 
-verbose = True
+verbose = False
+verbose_pckh = False
 verbose_pck = False
 
 
-random_seed = 115
+random_seed = 1
 
 ##### since kinect RGBskeleton.txt itself contains the locations of joints in the format of float pixel numbers instead of discrete pixel numbers, the ground truth is more precise with floats rather than ints 
 ### IMP whether to keep or not
 # roundof_pred = True
+
+import datetime
+import time
+
+def get_timestamp():
+    return datetime.datetime.fromtimestamp(time.time()).strftime('%m%d%Y%H%M')
 
 
 def eucl_loss_np(x, y):
@@ -79,6 +86,8 @@ class Test:
         
         self.BASE_DIR_TEST_KP = ""
         self.BASE_DIR_TEST_HEATMAPS = ""
+        self.BASE_DIR_TEST_RESULTS = ""
+        self.BASE_DIR_TEST_IMAGES = ""
         
         # stores test data
         self.partition_dict = {}
@@ -111,7 +120,7 @@ class Test:
         ##### ========================================= #####
         self.test_sessions = ['s18', 's19']
         self.n_test_imgs = 5000
-        self.len_test_set = 20
+        self.len_test_set = 5
         self.aug_fraction = 0.0  # use aug_fraction % of the images from aug set and remaining from original non_aug set
                 
         # loss calc
@@ -119,19 +128,23 @@ class Test:
         self.total_test_samples = 0 
         
         # pck calculations
-        self.metric_type = ["PCK", "PCKh", "AP"]
+        self.metric_type = ["PCKh", "PCK", "AP"]
         self.n_hm = 10  # 10 joints
         
         # for pck
-        self.pck_at = [0.1, 0.2, 0.3]  # @_, @_, and @_
+        self.b_box_method = "vertical_box" 
+        self.pck_at = [0.0, 0.02, 0.04, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]  # @_, @_, and @_
         self.pck_mat_all = np.zeros((self.n_hm, len(self.pck_at), self.len_test_set))  # 10, 3, 1000
-        self.pck_mat_avg = np.zeros((self.n_hm, len(self.pck_at)))
+        self.pck_mat_avg = np.zeros((self.n_hm, len(self.pck_at)))  # 10, 3
         
         # for pckh
         self.pckh_h_factor = 0.5
         self.pckh_mat_all = np.zeros((self.n_hm, 1, self.len_test_set))  # 10, 1, 1000
         self.pckh_mat_avg = np.zeros((self.n_hm, 1))  # 10, 1
         
+        # joint list
+        
+        self.joints = ['Head', 'Spine_Shoulder (Neck)', 'Left Shoulder', 'Left Elbow', 'Left Wrist', 'Right Shoulder', 'Right Elbow', 'Right Wrist', 'Left Hip', 'Right Hip']
         
         
         # CONFIG PARAMETERS
@@ -183,6 +196,14 @@ class Test:
         self.BASE_DIR_TEST_HEATMAPS = os.path.join(EXP_BASE_DIR, self.experiment_dir + "testing/heatmaps")
         print("creating a directory", self.BASE_DIR_TEST_HEATMAPS)
         os.makedirs(self.BASE_DIR_TEST_HEATMAPS, exist_ok=True)
+        
+        self.BASE_DIR_TEST_RESULTS = os.path.join(EXP_BASE_DIR, self.experiment_dir + "testing/results")
+        print("creating a directory", self.BASE_DIR_TEST_RESULTS)
+        os.makedirs(self.BASE_DIR_TEST_RESULTS, exist_ok=True)
+        
+        self.BASE_DIR_TEST_IMAGES = os.path.join(EXP_BASE_DIR, self.experiment_dir + "testing/images")
+        print("creating a directory", self.BASE_DIR_TEST_IMAGES)
+        os.makedirs(self.BASE_DIR_TEST_IMAGES, exist_ok=True)
 
         # e.g., epoch_num = 100
         model_file = self.BASE_DIR_TRAIN + 'weights_egg.%04d.h5'%(int(self.epoch_num))
@@ -246,6 +267,28 @@ class Test:
         print("\n##### final test_samples", len(self.partition_dict['test']))
 
     
+    def plot_pck_mat(self,):
+        fig, ax = plt.subplots(nrows=5, ncols=2)
+        print(ax.shape)
+        fig.set_size_inches((5, 5))
+
+        x = self.pck_at
+        x_label = "Normalized Distance"
+        y_label = "PCK"
+
+        for p in range(self.pck_mat_avg.shape[0]):
+            i = p%5
+            j = 0 if p<5 else 1
+            y = self.pck_mat_avg[p]
+            ax[i][j].plot(x, y)
+            ax[i][j].set(xlabel=x_label, ylabel=y_label, xlim=[0, 0.5], ylim=[0, 1.1], title=self.joints[p])
+            ax[i][j].grid()
+
+        # fig.tight_layout()
+        plt.show()
+        # fig.savefig(self.BASE_DIR_TEST_RESULTS + "/t1.png")
+        
+        
     def distAB(self, pointA, pointB):
         """
         pointA and B: should be np.array([x, y])
@@ -270,53 +313,88 @@ class Test:
         return len_h
     
     
-    def print_pck_mats(self,):
-        print("self.pckh_mat_all\n", self.pckh_mat_all)
+    def get_len_head_segment_bounding_box_method(self, gt_kp):
+        # self.b_box_method = "vertical_box": this method assumes that test images and subjects are all upright there is no tilt in their spinal axis w.r.t. the verticacl direction
+        if self.b_box_method == "vertical_box":
+            bw = max(gt_kp[:,0]) - min(gt_kp[:,0])  # max along x - min along x
+            bh = max(gt_kp[:,1]) - min(gt_kp[:,1])  # max along y - min along y
+        normalized_len = max(bh, bw)
+        return normalized_len
+    
+    
+    def print_and_save_pck_mats(self,):
+        # print("self.pckh_mat_all\n", self.pckh_mat_all)
         print("self.pckh_mat_avg\n", self.pckh_mat_avg)
+        print("saving pckh mat to", self.BASE_DIR_TEST_RESULTS)
+        pckh_savefile = os.path.join(self.BASE_DIR_TEST_RESULTS, "test_pckh_ep" + str(self.epoch_num) + "_nTest_" + str(self.len_test_set) + "_time" + get_timestamp() + ".npy")
+        np.save(pckh_savefile, self.pckh_mat_avg)
+        
+        # print("self.pck_mat_all\n", self.pck_mat_all)
+        print("self.pck_mat_avg\n", self.pck_mat_avg)
+        print("saving pck mat to", self.BASE_DIR_TEST_RESULTS)
+        pck_savefile = os.path.join(self.BASE_DIR_TEST_RESULTS, "test_pck_ep" + str(self.epoch_num) + "_nTest_" + str(self.len_test_set) + "_time" + get_timestamp() + ".npy")
+        np.save(pck_savefile, self.pck_mat_avg)
         
         
     def calculate_pck(self, idx, gt_kp, pred_kp):
-        if verbose_pck: 
+        if verbose_pckh: 
             print(" >>>>>>>> gt_kp.shape, pred_kp.shape", gt_kp.shape, pred_kp.shape)
             print(" >>>>>>>>\n", gt_kp, "\n\n", pred_kp)
             print("checking if anything is nan in the ground truth")
         assert(not np.isnan(gt_kp).any())
         
-        pckh_mat_img = np.zeros(self.pck_mat_avg.shape)
-        pck_mat_img = np.zeros(self.pck_mat_avg.shape)
+        pckh_mat_img = np.zeros(self.pckh_mat_avg.shape)  # (10, 1)
+        pck_mat_img = np.zeros(self.pck_mat_avg.shape)  # (10, 3)
         
         for metric in self.metric_type:
             if metric == "PCKh":
-                if verbose_pck: print("calculating PCKh (w.r.t. head segment)")
+                if verbose_pckh: print("calculating PCKh (w.r.t. head segment)")
                 # check if head and spine shoulder are not nan
                 head_xy = gt_kp[0]
                 spine_shoulder_xy = gt_kp[1]
-                if verbose_pck: print("gt head_xy, spine_shoulder_xy", head_xy, spine_shoulder_xy)
+                if verbose_pckh: print("gt head_xy, spine_shoulder_xy", head_xy, spine_shoulder_xy)
                 assert(not np.isnan(head_xy).any())
                 assert(not np.isnan(spine_shoulder_xy).any())
                 
                 len_head_seg = self.get_len_head_segment(head_xy, spine_shoulder_xy)
                 assert(len_head_seg > 0)
-                if verbose_pck: print("PCKh h len_head_seg =", len_head_seg)
+                if verbose_pckh: print(" ***** PCKh h len_head_seg =", len_head_seg)
                 
                 # comapare the gt and pred in pairwise manner and find the distances between pairs (n_hm pairs)
                 pckh_mat_img = np.sqrt(np.sum(np.square(gt_kp - pred_kp[:, 0:2]), axis=1))
+                if verbose_pckh: print("pckh_mat_img.shape", pckh_mat_img.shape)  # (10,)
                 # threshold based on whether the points are within 0.5*len_head_seg distance of each other
+                # if there is np.nan in predicted kp, then following d comparison is always False (as expected because the prediction is not close to gt), so it outputs 0 meaning the joint was not predicted correctly. 
                 pckh_mat_img = np.array([1 if d <= self.pckh_h_factor*len_head_seg else 0 for d in pckh_mat_img])
                 pckh_mat_img = pckh_mat_img[:, np.newaxis]  # from (10,) to (10,1)
                 
                 # set the calculated pckh_mat_img to the idx of self.pckh_mat_all
                 # print("", self.pckh_mat_all[:, :, idx].shape, pckh_mat_img.shape)
                 self.pckh_mat_all[:, :, idx] = pckh_mat_img
-                if verbose_pck: print("pckh_mat_img\n", pckh_mat_img)
+                if verbose_pckh: print("pckh_mat_img\n", pckh_mat_img)
                 
-#             if metric == "PCK":
-#                 for m in self.pck_at:
-#                     print("measuring pck at", m)
-        
-#         return None
-    
-        
+            if metric == "PCK":
+                normalized_len = self.get_len_head_segment_bounding_box_method(gt_kp)
+                assert(normalized_len > 0)
+                if verbose_pck: print(" ***** PCK normalized_len =", normalized_len)
+                
+                for m_id, m in enumerate(self.pck_at):
+                    if verbose_pck: print("measuring pck at", m)
+                    
+                    # comapare the gt and pred in pairwise manner and find the distances between pairs (n_hm pairs)
+                    pck_mat_img[:, m_id] = np.sqrt(np.sum(np.square(gt_kp - pred_kp[:, 0:2]), axis=1))
+                    if verbose_pck: print("pck_mat_img, pck_mat_img[:, m_id].shape is (10,)", pck_mat_img, pck_mat_img[:, m_id].shape)  # to verify if the columns are exactly same to each other
+                    
+                    # threshold based on whether the points are within m*normalized_len distance of each other
+                    pck_mat_img[:, m_id] = np.array([1 if d <= m*normalized_len else 0 for d in pck_mat_img[:, m_id]])
+                    # pck_mat_img = pck_mat_img[:, np.newaxis]  # from (10,) to (10,1)
+                    
+                # set the calculated pck_mat_img to the idx of self.pck_mat_all
+                if verbose_pck: print("self.pck_mat_all[:, :, idx].shape, pck_mat_img.shape", self.pck_mat_all[:, :, idx].shape, pck_mat_img.shape)
+                self.pck_mat_all[:, :, idx] = pck_mat_img
+                if verbose_pck: print("pck_mat_img\n", pck_mat_img)
+
+                    
     def calculate_loss(self, test_image, heatmap_avg_pred):
         pred_hm = heatmap_avg_pred
         # print("pred shape", pred_hm.shape)
@@ -373,15 +451,15 @@ class Test:
             if len(peaks_with_score) > 1:
                 peaks_with_score = [max(peaks_with_score, key=itemgetter(2))]
                 # peaks_with_score = [max(peaks_with_score, key=lambda pws:pws[2])]
-                if verbose: print("peaks_with_score", peaks_with_score)
+                if verbose: print("peaks_with_score max score is kept", peaks_with_score)
             
             
             id = range(peak_counter, peak_counter + len(peaks_with_score))
             if verbose: print("id", id)
             peaks_with_score_and_id = [peaks_with_score[i] + (id[i],) for i in range(len(id))]
             if verbose: print("peaks_with_score_and_id", peaks_with_score_and_id)
-            # convert tuple to list: [(178, 146, 0.34160166233778, 9)] -> [178, 146, 0.34160166233778, 9]
             
+            # convert tuple to list: [(178, 146, 0.34160166233778, 9)] -> [178, 146, 0.34160166233778, 9]
             if len(peaks_with_score) > 0:
                 peaks_with_score_and_id = list(peaks_with_score_and_id[0])
             else:  #  len(peaks_with_score) = 0:
@@ -393,6 +471,21 @@ class Test:
     
         print("all_peaks, peak_counter", all_peaks, len(all_peaks), peak_counter)
         return all_peaks
+    
+    
+    def show_overlapped_gt_and_pred(self, test_image, heatmap_avg)):
+        plt.figure()
+        oriImg = cv2.imread(test_image)  # B,G,R order
+        plt.imshow(oriImg[:,:,[2,1,0]])
+        plt.imshow(heatmap_avg[:,:,-1], alpha=.70)  # only background hm
+        fig = matplotlib.pyplot.gcf()
+        cax = matplotlib.pyplot.gca()
+        fig.set_size_inches(20, 20)
+        fig.subplots_adjust(right=0.93)
+        cbar_ax = fig.add_axes([0.95, 0.15, 0.01, 0.7])
+        _ = fig.colorbar(ax2, cax=cbar_ax)
+        plt.show()
+    
     
         
     def process_img(self, idx, test_image):
@@ -511,7 +604,8 @@ class Test:
             
         self.calculate_pck(idx, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks))
         
-               
+        # show and save overlapped gt and pred
+        self.show_overlapped_gt_and_pred(test_image, heatmap_avg)
         
         return loss_hm
                 
@@ -525,7 +619,7 @@ class Test:
             else:
                 image = os.path.join(eggnog_dataset_path, img + '_240x320.jpg')
 
-            print("\n reading and processing", idx, image)
+            print("\nreading and processing", idx, image)
             total_loss = total_loss + self.process_img(idx, image)
         
         self.total_loss = total_loss
@@ -534,10 +628,21 @@ class Test:
         
         
         # find average across all test examples
-        self.pckh_mat_avg = np.mean(self.pckh_mat_all, axis=2)
+        print("###############")
+        print("Checking if *_mat_all has any np.nan in it (there should not be)")
+        print("number of np.nans in self.pckh_mat_all", np.count_nonzero(np.isnan(self.pckh_mat_all)))
+        print("np.isnan(self.pckh_mat_all).any() (should be false)", np.isnan(self.pckh_mat_all).any())
         
-        # finally print
-        self.print_pck_mats()
+        print("number of np.nans in self.pck_mat_all", np.count_nonzero(np.isnan(self.pck_mat_all)))
+        print("np.isnan(self.pck_mat_all).any() (should be false)", np.isnan(self.pck_mat_all).any())
+        print("###############")
+        
+        self.pckh_mat_avg = np.mean(self.pckh_mat_all, axis=2)
+        self.pck_mat_avg = np.mean(self.pck_mat_all, axis=2)
+        
+        # finally print and save
+        self.print_and_save_pck_mats()
+        # self.plot_pck_mat() use ipython to plot, this function doesn't plot good
         
         
         
