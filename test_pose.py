@@ -9,7 +9,9 @@ from model import get_testing_model_eggnog_v1
 # 
 import cv2
 import matplotlib
-import pylab as plt
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+# import pylab as plt
 
 import random
 sys.path.append("./training/")
@@ -24,9 +26,6 @@ from py_eggnog_server.py_eggnog_transformer import keypoint_transform_to_240x320
 import util
 
 from scipy.ndimage.filters import gaussian_filter
-
-# for metrics
-import matplotlib.pyplot as plt
 
 from operator import itemgetter
 
@@ -120,7 +119,7 @@ class Test:
         ##### ========================================= #####
         self.test_sessions = ['s18', 's19']
         self.n_test_imgs = 5000
-        self.len_test_set = 5
+        self.len_test_set = 100
         self.aug_fraction = 0.0  # use aug_fraction % of the images from aug set and remaining from original non_aug set
                 
         # loss calc
@@ -145,7 +144,7 @@ class Test:
         # joint list
         
         self.joints = ['Head', 'Spine_Shoulder (Neck)', 'Left Shoulder', 'Left Elbow', 'Left Wrist', 'Right Shoulder', 'Right Elbow', 'Right Wrist', 'Left Hip', 'Right Hip']
-        
+        self.joints_short =  ['H', 'SpSh', 'LSh', 'LEl', 'LWr', 'RSh', 'REl', 'RWr', 'LHip', 'RHip']
         
         # CONFIG PARAMETERS
         self.param = None
@@ -162,7 +161,7 @@ class Test:
         print("self.model_params", self.model_params, type(self.model_params))
         ### TODO write and change config
 
-        #     param_dict = {'use_gpu': 1, 'GPUdeviceNumber': 0, 'modelID': '1', 'octave': 3, 'starting_range': 0.8, 'ending_range': 2.0, 'scale_search': [1, 1, 1], 'thre1': 0.1, 'thre2': 0.05, 'thre3': 0.5, 'min_num': 4, 'mid_num': 10, 'crop_ratio': 2.5, 'bbox_ratio': 0.25}
+        # param_dict = {'use_gpu': 1, 'GPUdeviceNumber': 0, 'modelID': '1', 'octave': 3, 'starting_range': 0.8, 'ending_range': 2.0, 'scale_search': [1, 1, 1], 'thre1': 0.1, 'thre2': 0.05, 'thre3': 0.5, 'min_num': 4, 'mid_num': 10, 'crop_ratio': 2.5, 'bbox_ratio': 0.25}
     
         # 3
         self.run_test_on_imgs()
@@ -296,7 +295,7 @@ class Test:
         return np.linalg.norm(pointA - pointB)
     
     
-#     def check_if_within_ditance_d(self, pointA, pointB, d):
+#     def check_if_within_distance_d(self, pointA, pointB, d):
 #         """
 #         pointA: ground truth point (x, y)
 #         pointB: predicted point (x, y)
@@ -473,18 +472,34 @@ class Test:
         return all_peaks
     
     
-    def show_overlapped_gt_and_pred(self, test_image, heatmap_avg)):
-        plt.figure()
+    def show_overlapped_gt_and_pred(self, test_image, heatmap_avg, gt_kp, pred_kp):
+        i = -1 # only background hm
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        fig.set_size_inches((5, 5))
+        
         oriImg = cv2.imread(test_image)  # B,G,R order
-        plt.imshow(oriImg[:,:,[2,1,0]])
-        plt.imshow(heatmap_avg[:,:,-1], alpha=.70)  # only background hm
-        fig = matplotlib.pyplot.gcf()
-        cax = matplotlib.pyplot.gca()
-        fig.set_size_inches(20, 20)
-        fig.subplots_adjust(right=0.93)
-        cbar_ax = fig.add_axes([0.95, 0.15, 0.01, 0.7])
-        _ = fig.colorbar(ax2, cax=cbar_ax)
-        plt.show()
+        ax.imshow(oriImg[:,:,[2,1,0]])
+        
+        x = gt_kp[...,0]
+        y = gt_kp[...,1]
+        a1 = ax.scatter(x, y, c='w', alpha=0.5, s=10)
+        for n, txt in enumerate(self.joints_short):
+            ax.annotate(txt, (x[n],y[n]), fontsize=5, color='white')
+        
+        x = pred_kp[...,0]
+        y = pred_kp[...,1]
+        a2 = ax.scatter(x, y, c='k', alpha=0.5, marker='*', s=5)
+        for n, txt in enumerate(self.joints_short):
+            ax.annotate(txt, (x[n],y[n]), fontsize=5, color='darkslategrey')
+            
+        ax_h = ax.imshow(heatmap_avg[:,:,i], alpha=.70) 
+        ax.legend([a1, a2], ["GTruth", "Pred"])
+        
+        
+    
+        fig.colorbar(ax_h, ax=ax)
+        
+        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '.png'))
     
     
         
@@ -605,7 +620,8 @@ class Test:
         self.calculate_pck(idx, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks))
         
         # show and save overlapped gt and pred
-        self.show_overlapped_gt_and_pred(test_image, heatmap_avg)
+        self.show_overlapped_gt_and_pred(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
+        self.show_overlapped_gt_and_pred(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
         
         return loss_hm
                 
