@@ -33,7 +33,7 @@ np_branch1 = 18  # 18 (keeping only common joints and paf pairs) # 38
 np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
 
 
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 EXP_BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/"
 eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
@@ -50,6 +50,7 @@ eggnog_testing = True
 calculate_loss = True
 hm_save = False  # save predicted hms to disk
 kp_save = True
+img_save = False
 
 verbose = False
 verbose_pckh = False
@@ -118,8 +119,8 @@ class Test:
         # ['s19']
         ##### ========================================= #####
         self.test_sessions = ['s18', 's19']
-        self.n_test_imgs = 5000
-        self.len_test_set = 100
+        self.n_test_imgs = 10000
+        self.len_test_set = 5000
         self.aug_fraction = 0.0  # use aug_fraction % of the images from aug set and remaining from original non_aug set
                 
         # loss calc
@@ -133,18 +134,20 @@ class Test:
         # for pck
         self.b_box_method = "vertical_box" 
         self.pck_at = [0.0, 0.02, 0.04, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]  # @_, @_, and @_
-        self.pck_mat_all = np.zeros((self.n_hm, len(self.pck_at), self.len_test_set))  # 10, 3, 1000
-        self.pck_mat_avg = np.zeros((self.n_hm, len(self.pck_at)))  # 10, 3
+        self.pck_mat_all = np.zeros((self.n_hm, len(self.pck_at), self.len_test_set))  # 10, 16, 1000
+        self.pck_mat_avg = np.zeros((self.n_hm, len(self.pck_at)))  # 10, 16
+        self.pck_pixel_norm_len = np.zeros((self.len_test_set, len(self.pck_at)))  # n_test x len(pck_at)
         
         # for pckh
-        self.pckh_h_factor = 0.5
-        self.pckh_mat_all = np.zeros((self.n_hm, 1, self.len_test_set))  # 10, 1, 1000
-        self.pckh_mat_avg = np.zeros((self.n_hm, 1))  # 10, 1
+        # self.pckh_h_factor = 0.5  # commneted becasue it's included in the list below
+        self.pckh_at = [0.0, 0.02, 0.04, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+        self.pckh_mat_all = np.zeros((self.n_hm, len(self.pckh_at), self.len_test_set))  # 10, 16, 1000
+        self.pckh_mat_avg = np.zeros((self.n_hm, len(self.pckh_at)))  # 10, 16
+        self.pckh_pixel_norm_len = np.zeros((self.len_test_set, len(self.pckh_at)))  # n_test x len(pckh_at)
         
         # joint list
-        
         self.joints = ['Head', 'Spine_Shoulder (Neck)', 'Left Shoulder', 'Left Elbow', 'Left Wrist', 'Right Shoulder', 'Right Elbow', 'Right Wrist', 'Left Hip', 'Right Hip']
-        self.joints_short =  ['H', 'SpSh', 'LSh', 'LEl', 'LWr', 'RSh', 'REl', 'RWr', 'LHip', 'RHip']
+        self.joints_short = ['H', 'SpSh', 'LSh', 'LEl', 'LWr', 'RSh', 'REl', 'RWr', 'LHip', 'RHip']
         
         # CONFIG PARAMETERS
         self.param = None
@@ -312,8 +315,8 @@ class Test:
         return len_h
     
     
-    def get_len_head_segment_bounding_box_method(self, gt_kp):
-        # self.b_box_method = "vertical_box": this method assumes that test images and subjects are all upright there is no tilt in their spinal axis w.r.t. the verticacl direction
+    def get_len_persons_bounding_box(self, gt_kp):
+        # self.b_box_method = "vertical_box": this method assumes that test images and subjects are all upright there is no tilt in their spinal axis w.r.t. the vertical direction
         if self.b_box_method == "vertical_box":
             bw = max(gt_kp[:,0]) - min(gt_kp[:,0])  # max along x - min along x
             bh = max(gt_kp[:,1]) - min(gt_kp[:,1])  # max along y - min along y
@@ -322,17 +325,26 @@ class Test:
     
     
     def print_and_save_pck_mats(self,):
+        
         # print("self.pckh_mat_all\n", self.pckh_mat_all)
         print("self.pckh_mat_avg\n", self.pckh_mat_avg)
         print("saving pckh mat to", self.BASE_DIR_TEST_RESULTS)
         pckh_savefile = os.path.join(self.BASE_DIR_TEST_RESULTS, "test_pckh_ep" + str(self.epoch_num) + "_nTest_" + str(self.len_test_set) + "_time" + get_timestamp() + ".npy")
         np.save(pckh_savefile, self.pckh_mat_avg)
+        print("mean pckh across all joints:", np.mean(self.pckh_mat_avg, axis=0))
+        print("mean normalized len in pixels for every x for x in pckh@x\n", np.mean(self.pckh_pixel_norm_len, axis=0))
+        
+        print("\nself.pckh_at", self.pckh_at)
         
         # print("self.pck_mat_all\n", self.pck_mat_all)
-        print("self.pck_mat_avg\n", self.pck_mat_avg)
+        print("\nself.pck_mat_avg\n", self.pck_mat_avg)
         print("saving pck mat to", self.BASE_DIR_TEST_RESULTS)
         pck_savefile = os.path.join(self.BASE_DIR_TEST_RESULTS, "test_pck_ep" + str(self.epoch_num) + "_nTest_" + str(self.len_test_set) + "_time" + get_timestamp() + ".npy")
         np.save(pck_savefile, self.pck_mat_avg)
+        print("mean pck across all joints:", np.mean(self.pck_mat_avg, axis=0))
+        print("mean normalized len in pixels for every x for x in pck@x\n", np.mean(self.pck_pixel_norm_len, axis=0))
+
+        print("\nself.pck_at", self.pck_at)
         
         
     def calculate_pck(self, idx, gt_kp, pred_kp):
@@ -342,12 +354,11 @@ class Test:
             print("checking if anything is nan in the ground truth")
         assert(not np.isnan(gt_kp).any())
         
-        pckh_mat_img = np.zeros(self.pckh_mat_avg.shape)  # (10, 1)
-        pck_mat_img = np.zeros(self.pck_mat_avg.shape)  # (10, 3)
+        pckh_mat_img = np.zeros(self.pckh_mat_avg.shape)  # (10, 16)
+        pck_mat_img = np.zeros(self.pck_mat_avg.shape)  # (10, 16)
         
         for metric in self.metric_type:
             if metric == "PCKh":
-                if verbose_pckh: print("calculating PCKh (w.r.t. head segment)")
                 # check if head and spine shoulder are not nan
                 head_xy = gt_kp[0]
                 spine_shoulder_xy = gt_kp[1]
@@ -359,13 +370,18 @@ class Test:
                 assert(len_head_seg > 0)
                 if verbose_pckh: print(" ***** PCKh h len_head_seg =", len_head_seg)
                 
-                # comapare the gt and pred in pairwise manner and find the distances between pairs (n_hm pairs)
-                pckh_mat_img = np.sqrt(np.sum(np.square(gt_kp - pred_kp[:, 0:2]), axis=1))
-                if verbose_pckh: print("pckh_mat_img.shape", pckh_mat_img.shape)  # (10,)
-                # threshold based on whether the points are within 0.5*len_head_seg distance of each other
-                # if there is np.nan in predicted kp, then following d comparison is always False (as expected because the prediction is not close to gt), so it outputs 0 meaning the joint was not predicted correctly. 
-                pckh_mat_img = np.array([1 if d <= self.pckh_h_factor*len_head_seg else 0 for d in pckh_mat_img])
-                pckh_mat_img = pckh_mat_img[:, np.newaxis]  # from (10,) to (10,1)
+                for n_id, n in enumerate(self.pckh_at):
+                    if verbose_pckh: print("calculating PCKh (w.r.t. head segment) at", n)
+                    self.pckh_pixel_norm_len[idx][n_id] = n*len_head_seg
+            
+                    # comapare the gt and pred in pairwise manner and find the distances between pairs (n_hm pairs)
+                    pckh_mat_img[:, n_id] = np.sqrt(np.sum(np.square(gt_kp - pred_kp[:, 0:2]), axis=1))
+                    if verbose_pckh: print("pckh_mat_img.shape", pckh_mat_img.shape)  # (10, 16)
+                    
+                    # threshold based on whether the points are within 0.5*len_head_seg distance of each other
+                    # if there is np.nan in predicted kp, then following d comparison is always False (as expected because the prediction is not close to gt), so it outputs 0 meaning the joint was not predicted correctly, as expected
+                    pckh_mat_img[:, n_id] = np.array([1 if d <= n*len_head_seg else 0 for d in pckh_mat_img[:, n_id]])
+                    # pckh_mat_img = pckh_mat_img[:, np.newaxis]  # from (10,) to (10,1)
                 
                 # set the calculated pckh_mat_img to the idx of self.pckh_mat_all
                 # print("", self.pckh_mat_all[:, :, idx].shape, pckh_mat_img.shape)
@@ -373,12 +389,13 @@ class Test:
                 if verbose_pckh: print("pckh_mat_img\n", pckh_mat_img)
                 
             if metric == "PCK":
-                normalized_len = self.get_len_head_segment_bounding_box_method(gt_kp)
+                normalized_len = self.get_len_persons_bounding_box(gt_kp)
                 assert(normalized_len > 0)
                 if verbose_pck: print(" ***** PCK normalized_len =", normalized_len)
                 
                 for m_id, m in enumerate(self.pck_at):
                     if verbose_pck: print("measuring pck at", m)
+                    self.pck_pixel_norm_len[idx][m_id] = m*normalized_len
                     
                     # comapare the gt and pred in pairwise manner and find the distances between pairs (n_hm pairs)
                     pck_mat_img[:, m_id] = np.sqrt(np.sum(np.square(gt_kp - pred_kp[:, 0:2]), axis=1))
@@ -473,7 +490,7 @@ class Test:
     
     
     def show_overlapped_gt_and_pred(self, test_image, heatmap_avg, gt_kp, pred_kp):
-        i = -1 # only background hm
+        i = -1  # only background hm
         fig, ax = plt.subplots(nrows=1, ncols=1)
         fig.set_size_inches((5, 5))
         
@@ -495,8 +512,6 @@ class Test:
         ax_h = ax.imshow(heatmap_avg[:,:,i], alpha=.70) 
         ax.legend([a1, a2], ["GTruth", "Pred"])
         
-        
-    
         fig.colorbar(ax_h, ax=ax)
         
         fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '.png'))
@@ -620,8 +635,8 @@ class Test:
         self.calculate_pck(idx, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks))
         
         # show and save overlapped gt and pred
-        self.show_overlapped_gt_and_pred(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
-        self.show_overlapped_gt_and_pred(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
+        if img_save:
+            self.show_overlapped_gt_and_pred(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
         
         return loss_hm
                 
