@@ -575,8 +575,9 @@ def run_eval_metric(cocoGt, prediction_json, total_time, full_eval):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    epoch_num = 100
+    epoch_num = 10
     model_file = '../training/weights/weights.%04d.h5'%(epoch_num)
+    # model_file = '/s/red/b/nobackup/data/eggnog_cpm/training_files/coco_cpm1/0412180530pm/training/weights/weights.%04d.h5'%(epoch_num)
     parser.add_argument('--model', type=str, default=model_file, help='path to the weights file')
     parser.add_argument('--outputjson', type=str, default='val2014_result.json', help='path to the json file for coco eval')
     parser.add_argument('--coco_dataType', type=str, default='val2014', help='val2017 or val2014')

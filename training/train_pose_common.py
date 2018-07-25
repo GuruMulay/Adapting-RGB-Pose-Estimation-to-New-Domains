@@ -42,7 +42,7 @@ remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 comm
 map_to_coco = True
 coco_type_masking = False
 add_imagenet_images = True
-imagenet_fraction = 0.2
+imagenet_fraction = 0.1
 
 
 crop_to_square = False  # crop the images and gt to a square shape
@@ -152,10 +152,10 @@ if split_sessionwise == 0:
     
 # sessionwise split
 if split_sessionwise == 1:
-    train_sessions = ['s03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's17', 's21']
+    train_sessions = ['s01', 's02', 's03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's11', 's12', 's17', 's21']
     val_sessions = ['s06', 's07', 's14', 's15']
-    n_train_imgs = 40000
-    n_val_imgs = 4000
+    n_train_imgs = 320000
+    n_val_imgs = 32000
     n_train_imgs_per_session = int(n_train_imgs/len(train_sessions))
     n_val_imgs_per_session = int(n_val_imgs/len(val_sessions))
     
@@ -193,7 +193,7 @@ print("crop_to_square", crop_to_square)
 print("------------------ Flags ----------------------------")
 
 
-batch_size = 10
+batch_size = 40
 coco_fraction = 0.0
 eggnog_fraction = 1 - coco_fraction
 
@@ -205,7 +205,7 @@ print("eggnog_batch_size", eggnog_batch_size)
 
 base_lr = 1e-5
 momentum = 0.9
-weight_decay = 5e-2
+weight_decay = 1e-2
 lr_policy = "step"
 gamma = 0.9  # originally 0.333
 stepsize = 10000*17  # in original code each epoch is 121746 and step change is on 17th epoch
@@ -214,9 +214,9 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 print("weight_decay", weight_decay)
 
-os.environ["CUDA_VISIBLE_DEVICES"]="1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0711180300pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0725180200pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)

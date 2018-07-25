@@ -16,6 +16,8 @@ imagenet_val = imagenet_folders_all[int(0.8*len(imagenet_folders_all)):]
 
 print("train and val", imagenet_train, imagenet_val)
 
+imagenet_test = ['train_set_5/n12267677/', 'train_set_4/n03843555/']
+
 
 class ImagenetImages:
 
@@ -31,9 +33,11 @@ class ImagenetImages:
         
         if mode == 'train':
             imagenet_folders = imagenet_train
-        else:
+        elif mode == 'val':
             imagenet_folders = imagenet_val
-        
+        else:
+            imagenet_folders = imagenet_test
+            
         for f in imagenet_folders:
             for img in os.listdir(os.path.join(self.imagenet_base_dir, f)):
                 if img.endswith(".JPEG"):

@@ -33,7 +33,7 @@ np_branch1 = 18  # 18 (keeping only common joints and paf pairs) # 38
 np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
 
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 EXP_BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/"
 eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
@@ -50,7 +50,7 @@ eggnog_testing = True
 calculate_loss = True
 hm_save = False  # save predicted hms to disk
 kp_save = True
-img_save = False
+img_save = True
 
 verbose = False
 verbose_pckh = False
@@ -120,7 +120,7 @@ class Test:
         ##### ========================================= #####
         self.test_sessions = ['s18', 's19']
         self.n_test_imgs = 10000
-        self.len_test_set = 5000
+        self.len_test_set = 100
         self.aug_fraction = 0.0  # use aug_fraction % of the images from aug set and remaining from original non_aug set
                 
         # loss calc

@@ -44,7 +44,10 @@ class EggnogGlobalConfig:
     eggnog_to_coco_10_joints_mapping = np.array([0, 9, 1, 2, 3, 4, 5, 6, 7, 8])  # array indexing is faster https://stackoverflow.com/questions/26194389/numpy-rearrange-array-based-upon-index-array
     
     eggnog19_to_eggnog_10_mapping = [3, 4, 5, 6, 8, 9, 10, 12, 13, 14]
+    #
+    
     eggnog19_to_coco_10_mapping = [3, 14, 4, 5, 6, 8, 9, 10, 12, 13]
+    # head, spine_shoulder(neck), LSh, LEl, Lhand, RSh, REl, Rhand, LHip, RHip [left: L => image's left]
     
     
     # haven't used following for eggnog
