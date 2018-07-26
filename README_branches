@@ -3,3 +3,6 @@ eggnog_dsgen:
 This is for: 
 1. Replicating dsgen of coco on eggnog dataset.
 2. Understanding coco dsgen.
+
+7/26: Adding mroe hms and pafs in the offline .npy files.
+      Going to clean the code as much as possible.
