@@ -25,7 +25,7 @@ class Heatmapper:
         self.gt_width = EggnogGlobalConfig.width//EggnogGlobalConfig.ground_truth_factor
         
         self.paf_pairs = EggnogGlobalConfig.paf_pairs_indices
-        
+        self.verbose_aug = False
 #         stride = RmpeGlobalConfig.stride
 #         width = RmpeGlobalConfig.width/stride
 #         height = RmpeGlobalConfig.height/stride
@@ -214,31 +214,42 @@ class Heatmapper:
             else:
                 heatmap = np.dstack(( heatmap, self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]), tracking_state) ))
             # print("heatmap.shape =", heatmap.shape)
-            
+
+        tracking_info_additional = []  # to store tracking info of additional indices for background use '3'
+        sk_kp_additional = []  # to store x, y for new two joints (avg of left and right) use 0, 0 for background
+
         # generate background heatmap
         maxed_heatmap = np.max(heatmap[:,:,:], axis=2)  # print("maxed_heatmap.shape = ", maxed_heatmap.shape)
         heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
 
+        tracking_info_additional.append(3)  # index19
+        sk_kp_additional.append(0)  # for x
+        sk_kp_additional.append(0)  # for y
 
-        print("heatmapper ======================")
+        if self.verbose_aug: print("heatmapper ======================")
         # #
         ### July 26th, 2018 (Added general purpose GT for multiple types of experiments)
         # generate background heatmap for the common joints with coco
-        print("common_joints_with_coco", EggnogGlobalConfig.common_joints_with_coco)
+        if self.verbose_aug: print("common_joints_with_coco", EggnogGlobalConfig.common_joints_with_coco)
         maxed_heatmap = np.max(heatmap[:, :, EggnogGlobalConfig.common_joints_with_coco], axis=2)
         # index 20
         heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
+        tracking_info_additional.append(3)  # index20
+        sk_kp_additional.append(0)  # for x
+        sk_kp_additional.append(0)  # for y
 
         # generate background heatmap for the case where additional_spine joints are added (0, 1, 2 joints)
         bk_hm_indices = [x for x in EggnogGlobalConfig.all_19_joint_indices if x not in EggnogGlobalConfig.left_hand_joint_indices + EggnogGlobalConfig.right_hand_joint_indices]
-        print("bk_hm_indices after adding 0, 1, 2", bk_hm_indices)
-        print("common_joints_with_coco + additional_spine_indices", EggnogGlobalConfig.common_joints_with_coco + EggnogGlobalConfig.additional_spine_indices)
+        if self.verbose_aug: print("bk_hm_indices after adding 0, 1, 2", bk_hm_indices)
+        if self.verbose_aug: print("common_joints_with_coco + additional_spine_indices", EggnogGlobalConfig.common_joints_with_coco + EggnogGlobalConfig.additional_spine_indices)
         assert (set(bk_hm_indices) == set(EggnogGlobalConfig.common_joints_with_coco + EggnogGlobalConfig.additional_spine_indices))
 
         maxed_heatmap = np.max(heatmap[:, :, bk_hm_indices], axis=2)
         # index 21
         heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
-        
+        tracking_info_additional.append(3)  # index21
+        sk_kp_additional.append(0)  # for x
+        sk_kp_additional.append(0)  # for y
         
         
         # add average of 3 left hand joints and then 3 right hand joints at index 22 and 23 (after index 0-19 and 20, 21)
@@ -250,19 +261,23 @@ class Heatmapper:
                 index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
         kpx_indices = [2 * ind for ind in EggnogGlobalConfig.left_hand_joint_indices]
         kpy_indices = [2 * ind + 1 for ind in EggnogGlobalConfig.left_hand_joint_indices]
-        print("kpx_indices, kpy_indices", kpx_indices, kpy_indices)
+        if self.verbose_aug: print("kpx_indices, kpy_indices", kpx_indices, kpy_indices)
 
         kpx = np.mean(sk_keypoints[kpx_indices])
         kpy = np.mean(sk_keypoints[kpy_indices])
-        print("mean of left hand joints x and y", kpx, kpy)
+        if self.verbose_aug: print("mean of left hand joints x and y", kpx, kpy)
 
         # kp_tracking_info is updated to UNTRACKED (0) if kp falls beyond the image w or h
         if check_if_out_of_the_frame(kpx, kpy):  # passing x and y
             tracking_state = 0
-            print("transformed kp is out of the frame, setting tracking info to UNTRACKED (0) for mean kp of hand joints")
+            if self.verbose_aug: print("transformed kp is out of the frame, setting tracking info to UNTRACKED (0) for mean kp of hand joints")
         else:
             tracking_state = int(np.mean(sk_kp_tracking_info[EggnogGlobalConfig.left_hand_joint_indices]))
-        print("tracking_state", tracking_state)
+        if self.verbose_aug: print("tracking_state", tracking_state)
+
+        tracking_info_additional.append(tracking_state)  # index22
+        sk_kp_additional.append(kpx)  # for x
+        sk_kp_additional.append(kpy)  # for y
 
         # index 22
         heatmap = np.dstack((heatmap, self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]), tracking_state)))
@@ -275,19 +290,23 @@ class Heatmapper:
                 index_array[i][j] = [i,j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
         kpx_indices = [2 * ind for ind in EggnogGlobalConfig.right_hand_joint_indices]
         kpy_indices = [2 * ind + 1 for ind in EggnogGlobalConfig.right_hand_joint_indices]
-        print("kpx_indices, kpy_indices", kpx_indices, kpy_indices)
+        if self.verbose_aug: print("kpx_indices, kpy_indices", kpx_indices, kpy_indices)
 
         kpx = np.mean(sk_keypoints[kpx_indices])
         kpy = np.mean(sk_keypoints[kpy_indices])
-        print("mean of right hand joints x and y", kpx, kpy)
+        if self.verbose_aug: print("mean of right hand joints x and y", kpx, kpy)
 
         # kp_tracking_info is updated to UNTRACKED (0) if kp falls beyond the image w or h
         if check_if_out_of_the_frame(kpx, kpy):  # passing x and y
             tracking_state = 0
-            print("transformed kp is out of the frame, setting tracking info to UNTRACKED (0) for mean kp of hand joints")
+            if self.verbose_aug: print("transformed kp is out of the frame, setting tracking info to UNTRACKED (0) for mean kp of hand joints")
         else:
             tracking_state = int(np.mean(sk_kp_tracking_info[EggnogGlobalConfig.right_hand_joint_indices]))
-        print("tracking_state", tracking_state)
+        if self.verbose_aug: print("tracking_state", tracking_state)
+
+        tracking_info_additional.append(tracking_state)  # index23
+        sk_kp_additional.append(kpx)  # for x
+        sk_kp_additional.append(kpy)  # for y
 
         # index 23
         heatmap = np.dstack((heatmap, self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]), tracking_state)))
@@ -295,12 +314,25 @@ class Heatmapper:
         # generate background heatmap for the case where hand joints are averaged
         bk_hm_indices = [x for x in EggnogGlobalConfig.all_19_joint_indices if
                          x not in EggnogGlobalConfig.left_hand_joint_indices + EggnogGlobalConfig.right_hand_joint_indices] + [EggnogGlobalConfig.avg_l_idx, EggnogGlobalConfig.avg_r_idx]
-        print("bk_hm_indices to get index 24 for avg l and r hand joints", bk_hm_indices)
+        if self.verbose_aug: print("bk_hm_indices to get index 24 for avg l and r hand joints", bk_hm_indices)
         maxed_heatmap = np.max(heatmap[:, :, bk_hm_indices], axis=2)
         # index 24
         heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
-      
-                
+
+        tracking_info_additional.append(3)  # index24
+        sk_kp_additional.append(0)  # for x
+        sk_kp_additional.append(0)  # for y
+
+
+        if self.verbose_aug: print("tracking_info_additional", tracking_info_additional)
+        sk_kp_tracking_info_additional = np.append(sk_kp_tracking_info, tracking_info_additional)
+        if self.verbose_aug: print("sk_kp_tracking_info_additional", sk_kp_tracking_info_additional, len(sk_kp_tracking_info_additional))
+
+        if self.verbose_aug: print("sk_kp_additional", sk_kp_additional)
+        sk_keypoints_additional = np.append(sk_keypoints, sk_kp_additional)
+        if self.verbose_aug: print("sk_keypoints_additional", sk_keypoints_additional, len(sk_keypoints_additional))
+
+
         # print("final heatmap.shape =", heatmap.shape)
         # np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_heatmap30x40.npy"), heatmap)
             
@@ -311,20 +343,20 @@ class Heatmapper:
             index_array = np.zeros((self.gt_height, self.gt_width, 2))
             for i in range(index_array.shape[0]):
                 for j in range(index_array.shape[1]):
-                        index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+                    index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
                         
-            tracking_states = [sk_kp_tracking_info[pair[0]], sk_kp_tracking_info[pair[1]]]
+            tracking_states = [sk_kp_tracking_info_additional[pair[0]], sk_kp_tracking_info_additional[pair[1]]]
             
             if n == 0:
                 paf = self.get_pafx_pafy(index_array, 
-                                    kp0xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
-                                    kp1xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]),
+                                    kp0xy=self.kpx_kpy_transformer([sk_keypoints_additional[2*pair[0]], sk_keypoints_additional[2*pair[0]+1]]),
+                                    kp1xy=self.kpx_kpy_transformer([sk_keypoints_additional[2*pair[1]], sk_keypoints_additional[2*pair[1]+1]]),
                                     tracking_states_pair=tracking_states
                                     )
             else:
                 paf = np.dstack(( paf,  self.get_pafx_pafy(index_array, 
-                                kp0xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
-                                kp1xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]),
+                                kp0xy=self.kpx_kpy_transformer([sk_keypoints_additional[2*pair[0]], sk_keypoints_additional[2*pair[0]+1]]),
+                                kp1xy=self.kpx_kpy_transformer([sk_keypoints_additional[2*pair[1]], sk_keypoints_additional[2*pair[1]+1]]),
                                 tracking_states_pair=tracking_states
                                 )
                                 ))

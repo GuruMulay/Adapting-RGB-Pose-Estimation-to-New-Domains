@@ -6,3 +6,6 @@ training/*/
 *.csv
 *.npy
 *.jpg
+.idea/
+*.xml
+*.iml

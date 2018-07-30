@@ -22,11 +22,11 @@ from py_eggnog_server.py_eggnog_transformer import Transformer, AugmentSelection
 
 np.set_printoptions(threshold=np.nan)
 
-write_aug_imgs = False
-eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/"  # for testing this python file
-# eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
+write_aug_imgs = True
+# eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/"  # for testing this python file
+eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
 # eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_s123/"  # for s01, s02, s03
-n_aug_per_image = 5
+n_aug_per_image = 3
 
 ### ********** ###
 process_s010203 = False
@@ -48,6 +48,7 @@ avg_r_idx = EggnogGlobalConfig.avg_r_idx  # 22
 
 additional_spine_indices = EggnogGlobalConfig.additional_spine_indices  # [0, 1, 2]  # additional to what COCO datasets has or what was used during common training with COCO
 
+verbose_aug = False
     
 """
 # note 1:
@@ -634,7 +635,7 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
     
     container = av.open(video_path)
     for k, fr in enumerate(container.decode(video=0)):
-        print("frame k ==========================", k)
+        # print("frame k ==========================", k)
         assert(k == fr.index)
         nearest_idx, nearest_time = find_nearest_frameindex_from_skeleton_file(rgb_skeleton_data[...,0], frame_time_dict[k]) # take column 0 (time) from rgb data
        
@@ -675,9 +676,9 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                     sk_kp_tracking_info = sk_keypoints_with_tracking_info[np.arange(0, sk_keypoints_with_tracking_info.size, 3)]  # only the info about tracking states (0, 1, 2) for 19 joints
                     sk_keypoints = np.delete(sk_keypoints_with_tracking_info, np.arange(0, sk_keypoints_with_tracking_info.size, 3))  # this is without tracking info, by removing the tracking info
                     # print("sk_kp shape =", sk_keypoints.shape)  # (38, )
-                    print("sk_keypoints_with_tracking_info", sk_keypoints_with_tracking_info)
-                    print("sk_kp_tracking_info", sk_kp_tracking_info)
-                    print("sk_keypoints", sk_keypoints)
+                    if verbose_aug: print("sk_keypoints_with_tracking_info", sk_keypoints_with_tracking_info)
+                    if verbose_aug: print("sk_kp_tracking_info", sk_kp_tracking_info)
+                    if verbose_aug: print("sk_keypoints", sk_keypoints)
                     
                     
                     # for 20 (actually 19 + background) heatmaps =====================================
@@ -704,6 +705,7 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                     # generate background heatmap # add background hm at index 19
                     maxed_heatmap = np.max(heatmap[:,:,:], axis=2)  # print("maxed_heatmap.shape = ", maxed_heatmap.shape)
                     heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
+
                     tracking_info_additional.append(3)  # index19
                     sk_kp_additional.append(0)  # for x
                     sk_kp_additional.append(0)  # for y
@@ -711,7 +713,7 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                     
                     ### July 26th, 2018 (Added general purpose GT for multiple types of experiments)
                     # generate background heatmap for the common joints with coco
-                    print("common_joints_with_coco", common_joints_with_coco)
+                    if verbose_aug: print("common_joints_with_coco", common_joints_with_coco)
                     maxed_heatmap = np.max(heatmap[:,:,common_joints_with_coco], axis=2)
                     # index 20
                     heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
@@ -721,8 +723,8 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                     
                     # generate background heatmap for the case where additional_spine joints are added (0, 1, 2 joints)
                     bk_hm_indices = [x for x in all_19_joint_indices if x not in left_hand_joint_indices + right_hand_joint_indices]  # 19 - 6
-                    print("bk_hm_indices after adding 0, 1, 2", bk_hm_indices)
-                    print("common_joints_with_coco + additional_spine_indices", common_joints_with_coco + additional_spine_indices)
+                    if verbose_aug: print("bk_hm_indices after adding 0, 1, 2", bk_hm_indices)
+                    if verbose_aug: print("common_joints_with_coco + additional_spine_indices", common_joints_with_coco + additional_spine_indices)
                     assert(set(bk_hm_indices) == set(common_joints_with_coco + additional_spine_indices))
                     
                     maxed_heatmap = np.max(heatmap[:,:,bk_hm_indices], axis=2)
@@ -740,13 +742,14 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                             index_array[i][j] = [i, j]
                     kpx_indices = [2*ind for ind in left_hand_joint_indices]
                     kpy_indices = [2*ind+1 for ind in left_hand_joint_indices]
-                    print("kpx_indices, kpy_indices", kpx_indices, kpy_indices)
+                    if verbose_aug: print("kpx_indices, kpy_indices", kpx_indices, kpy_indices)
                     
                     kpx = np.mean(sk_keypoints[kpx_indices])
                     kpy = np.mean(sk_keypoints[kpy_indices])
-                    print("mean of left hand joints x and y", kpx, kpy)
+                    if verbose_aug: print("mean of left hand joints x and y", kpx, kpy)
+
                     tracking_state = int(np.mean(sk_kp_tracking_info[left_hand_joint_indices]))
-                    print("tracking_state", tracking_state)
+                    if verbose_aug: print("tracking_state", tracking_state)
                     assert(tracking_state in [0, 1, 2])
                     tracking_info_additional.append(tracking_state)  # index22
                     sk_kp_additional.append(kpx)  # for x
@@ -762,11 +765,12 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                             index_array[i][j] = [i, j]
                     kpx_indices = [2*ind for ind in right_hand_joint_indices]
                     kpy_indices = [2*ind+1 for ind in right_hand_joint_indices]
-                    print("kpx_indices, kpy_indices", kpx_indices, kpy_indices)
+                    if verbose_aug: print("kpx_indices, kpy_indices", kpx_indices, kpy_indices)
                     
                     kpx = np.mean(sk_keypoints[kpx_indices])
                     kpy = np.mean(sk_keypoints[kpy_indices])
-                    print("mean of right hand joints x and y", kpx, kpy)
+                    if verbose_aug: print("mean of right hand joints x and y", kpx, kpy)
+
                     tracking_state = int(np.mean(sk_kp_tracking_info[right_hand_joint_indices]))
                     assert(tracking_state in [0, 1, 2])
                     tracking_info_additional.append(tracking_state)  # index23
@@ -778,26 +782,27 @@ def save_2d_keypoints_and_images_v2(video_name, video_path, npy_path, rgb_skelet
                     
                     # generate background heatmap for the case where hand joints are averaged
                     bk_hm_indices = [x for x in all_19_joint_indices if x not in left_hand_joint_indices + right_hand_joint_indices] + [avg_l_idx, avg_r_idx]  # 19 - 6 + 2 
-                    print("bk_hm_indices to get index 24 for avg l and r hand joints", bk_hm_indices)
+                    if verbose_aug: print("bk_hm_indices to get index 24 for avg l and r hand joints", bk_hm_indices)
                     maxed_heatmap = np.max(heatmap[:,:,bk_hm_indices], axis=2)
                     # index 24
                     heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
+
                     tracking_info_additional.append(3)  # index24
                     sk_kp_additional.append(0)  # for x
                     sk_kp_additional.append(0)  # for y
-                    
-                    
-                    print("tracking_info_additional", tracking_info_additional)
+
+
+                    if verbose_aug: print("tracking_info_additional", tracking_info_additional)
                     sk_kp_tracking_info_additional = np.append(sk_kp_tracking_info, tracking_info_additional)
-                    print("sk_kp_tracking_info_additional", sk_kp_tracking_info_additional, len(sk_kp_tracking_info_additional))
-                    
-                    print("sk_kp_additional", sk_kp_additional)
+                    if verbose_aug: print("sk_kp_tracking_info_additional", sk_kp_tracking_info_additional, len(sk_kp_tracking_info_additional))
+
+                    if verbose_aug: print("sk_kp_additional", sk_kp_additional)
                     sk_keypoints_additional = np.append(sk_keypoints, sk_kp_additional)
-                    print("sk_keypoints_additional", sk_keypoints_additional, len(sk_keypoints_additional))
+                    if verbose_aug: print("sk_keypoints_additional", sk_keypoints_additional, len(sk_keypoints_additional))
                     
                     
                     # 
-                    print("final heatmap.shape =", heatmap.shape)
+                    if verbose_aug: print("final heatmap.shape =", heatmap.shape)
                     np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_heatmap30x40.npy"), heatmap)
             
             
