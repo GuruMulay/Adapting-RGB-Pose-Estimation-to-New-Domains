@@ -4,6 +4,7 @@ import numpy as np
 from math import sqrt, isnan
 
 from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig, TransformationParams
+from py_eggnog_server.py_eggnog_transformer import check_if_out_of_the_frame
 
 
 from sklearn.preprocessing import normalize
@@ -28,8 +29,8 @@ class Heatmapper:
 #         stride = RmpeGlobalConfig.stride
 #         width = RmpeGlobalConfig.width/stride
 #         height = RmpeGlobalConfig.height/stride
-    
-    
+
+
     def kpx_kpy_transformer(self, kp_list):
         """
         transform kps from 320x240 image space to 40x30 ground truth space
@@ -40,19 +41,16 @@ class Heatmapper:
 
         return [kpx_transformed, kpy_transformed]
 
-    
+
     def kpx_kpy_transformer_v0(self, kp_list):
         """
+        same as def kpx_kpy_transformer(kp_list): from read_videos_write....py
         used when dataset is generated meaning the images are extracted from videos and gt is generated
         transform kps from 1920x1080 to 320x240 space and then to 40x30 ground truth space
         """
         # for normal res pafs
         kpx_transformed = (kp_list[0]-EggnogGlobalConfig.kp_x_offset_half) / EggnogGlobalConfig.kp_to_img_stride/EggnogGlobalConfig.ground_truth_factor
         kpy_transformed = (kp_list[1])/EggnogGlobalConfig.kp_to_img_stride/EggnogGlobalConfig.ground_truth_factor
-
-        # for high res pafs, this was used for verification
-        # kpx_transformed = (kp_list[0]-240)/4.5
-        # kpy_transformed = (kp_list[1])/4.5
 
         return [kpx_transformed, kpy_transformed]
     
@@ -190,6 +188,155 @@ class Heatmapper:
         return paf_array
 
     
+    def get_pafs_and_hms_heatmaps_additional_joints_version(self, sk_keypoints, sk_kp_tracking_info):
+        """
+        _additional_joints_version: added additional joints for averaged hand joints, also added three versions of background heatmaps (see notes from sheet 2).
+        sk_keypoints: (38,) shaped keypoints with alternate x and y corrdinates for 19 joints; # these kp are in the image space (240x320)
+        kp_tracking_info: 0 means UNTRACKED or out of frame
+        """
+        
+        # 3 from eggnog_preprocessing/preprocessing/read_videos_write_img_paf_hm.py
+        # print("sk_kp shape =", sk_keypoints.shape)  # (38, )
+        
+        # for 20 (actually 19 + background) heatmaps =====================================
+        for kpn in range(sk_keypoints.shape[0]//2):
+            kpx = sk_keypoints[2*kpn]
+            kpy = sk_keypoints[2*kpn+1]  # print(kpx, kpy)
+            tracking_state = sk_kp_tracking_info[kpn]
+            
+            index_array = np.zeros((self.gt_height, self.gt_width, 2))
+            for i in range(index_array.shape[0]):
+                for j in range(index_array.shape[1]):
+                    index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+                
+            if kpn == 0:
+                heatmap = self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]), tracking_state)
+            else:
+                heatmap = np.dstack(( heatmap, self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]), tracking_state) ))
+            # print("heatmap.shape =", heatmap.shape)
+            
+        # generate background heatmap
+        maxed_heatmap = np.max(heatmap[:,:,:], axis=2)  # print("maxed_heatmap.shape = ", maxed_heatmap.shape)
+        heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
+
+
+        print("heatmapper ======================")
+        # #
+        ### July 26th, 2018 (Added general purpose GT for multiple types of experiments)
+        # generate background heatmap for the common joints with coco
+        print("common_joints_with_coco", EggnogGlobalConfig.common_joints_with_coco)
+        maxed_heatmap = np.max(heatmap[:, :, EggnogGlobalConfig.common_joints_with_coco], axis=2)
+        # index 20
+        heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
+
+        # generate background heatmap for the case where additional_spine joints are added (0, 1, 2 joints)
+        bk_hm_indices = [x for x in EggnogGlobalConfig.all_19_joint_indices if x not in EggnogGlobalConfig.left_hand_joint_indices + EggnogGlobalConfig.right_hand_joint_indices]
+        print("bk_hm_indices after adding 0, 1, 2", bk_hm_indices)
+        print("common_joints_with_coco + additional_spine_indices", EggnogGlobalConfig.common_joints_with_coco + EggnogGlobalConfig.additional_spine_indices)
+        assert (set(bk_hm_indices) == set(EggnogGlobalConfig.common_joints_with_coco + EggnogGlobalConfig.additional_spine_indices))
+
+        maxed_heatmap = np.max(heatmap[:, :, bk_hm_indices], axis=2)
+        # index 21
+        heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
+        
+        
+        
+        # add average of 3 left hand joints and then 3 right hand joints at index 22 and 23 (after index 0-19 and 20, 21)
+        # left 3 joints
+        index_array = np.zeros((EggnogGlobalConfig.height // EggnogGlobalConfig.ground_truth_factor,
+                                EggnogGlobalConfig.width // EggnogGlobalConfig.ground_truth_factor, 2))
+        for i in range(index_array.shape[0]):
+            for j in range(index_array.shape[1]):
+                index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+        kpx_indices = [2 * ind for ind in EggnogGlobalConfig.left_hand_joint_indices]
+        kpy_indices = [2 * ind + 1 for ind in EggnogGlobalConfig.left_hand_joint_indices]
+        print("kpx_indices, kpy_indices", kpx_indices, kpy_indices)
+
+        kpx = np.mean(sk_keypoints[kpx_indices])
+        kpy = np.mean(sk_keypoints[kpy_indices])
+        print("mean of left hand joints x and y", kpx, kpy)
+
+        # kp_tracking_info is updated to UNTRACKED (0) if kp falls beyond the image w or h
+        if check_if_out_of_the_frame(kpx, kpy):  # passing x and y
+            tracking_state = 0
+            print("transformed kp is out of the frame, setting tracking info to UNTRACKED (0) for mean kp of hand joints")
+        else:
+            tracking_state = int(np.mean(sk_kp_tracking_info[EggnogGlobalConfig.left_hand_joint_indices]))
+        print("tracking_state", tracking_state)
+
+        # index 22
+        heatmap = np.dstack((heatmap, self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]), tracking_state)))
+
+        # right 3 joints
+        index_array = np.zeros((EggnogGlobalConfig.height // EggnogGlobalConfig.ground_truth_factor,
+                                EggnogGlobalConfig.width // EggnogGlobalConfig.ground_truth_factor, 2))
+        for i in range(index_array.shape[0]):
+            for j in range(index_array.shape[1]):
+                index_array[i][j] = [i,j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+        kpx_indices = [2 * ind for ind in EggnogGlobalConfig.right_hand_joint_indices]
+        kpy_indices = [2 * ind + 1 for ind in EggnogGlobalConfig.right_hand_joint_indices]
+        print("kpx_indices, kpy_indices", kpx_indices, kpy_indices)
+
+        kpx = np.mean(sk_keypoints[kpx_indices])
+        kpy = np.mean(sk_keypoints[kpy_indices])
+        print("mean of right hand joints x and y", kpx, kpy)
+
+        # kp_tracking_info is updated to UNTRACKED (0) if kp falls beyond the image w or h
+        if check_if_out_of_the_frame(kpx, kpy):  # passing x and y
+            tracking_state = 0
+            print("transformed kp is out of the frame, setting tracking info to UNTRACKED (0) for mean kp of hand joints")
+        else:
+            tracking_state = int(np.mean(sk_kp_tracking_info[EggnogGlobalConfig.right_hand_joint_indices]))
+        print("tracking_state", tracking_state)
+
+        # index 23
+        heatmap = np.dstack((heatmap, self.get_heatmap(index_array, self.kpx_kpy_transformer([kpx, kpy]), tracking_state)))
+
+        # generate background heatmap for the case where hand joints are averaged
+        bk_hm_indices = [x for x in EggnogGlobalConfig.all_19_joint_indices if
+                         x not in EggnogGlobalConfig.left_hand_joint_indices + EggnogGlobalConfig.right_hand_joint_indices] + [EggnogGlobalConfig.avg_l_idx, EggnogGlobalConfig.avg_r_idx]
+        print("bk_hm_indices to get index 24 for avg l and r hand joints", bk_hm_indices)
+        maxed_heatmap = np.max(heatmap[:, :, bk_hm_indices], axis=2)
+        # index 24
+        heatmap = np.dstack((heatmap, 1 - maxed_heatmap))
+      
+                
+        # print("final heatmap.shape =", heatmap.shape)
+        # np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_heatmap30x40.npy"), heatmap)
+            
+            
+        # for 18x2 PAFs =====================================
+        for n, pair in enumerate(self.paf_pairs):
+            # print("writing paf for index", n, pair)
+            index_array = np.zeros((self.gt_height, self.gt_width, 2))
+            for i in range(index_array.shape[0]):
+                for j in range(index_array.shape[1]):
+                        index_array[i][j] = [i, j]  # height (y), width (x) => index_array[:,:,0] = y pixel coordinate and index_array[:,:,1] = x
+                        
+            tracking_states = [sk_kp_tracking_info[pair[0]], sk_kp_tracking_info[pair[1]]]
+            
+            if n == 0:
+                paf = self.get_pafx_pafy(index_array, 
+                                    kp0xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
+                                    kp1xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]),
+                                    tracking_states_pair=tracking_states
+                                    )
+            else:
+                paf = np.dstack(( paf,  self.get_pafx_pafy(index_array, 
+                                kp0xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[0]], sk_keypoints[2*pair[0]+1]]), 
+                                kp1xy=self.kpx_kpy_transformer([sk_keypoints[2*pair[1]], sk_keypoints[2*pair[1]+1]]),
+                                tracking_states_pair=tracking_states
+                                )
+                                ))
+            # print("paf.shape =", paf.shape)
+
+                    
+        # print("final paf.shape =========================", paf.shape)
+        # np.save(os.path.join(save_dir, video_name + "_vfr_" + str(k) + "_skfr_" + str(nearest_idx) + "_paf30x40.npy"), paf)
+        
+        return paf, heatmap
+    
+    
     
     def get_pafs_and_hms_heatmaps(self, sk_keypoints, sk_kp_tracking_info):
         """
@@ -259,7 +406,7 @@ class Heatmapper:
     
     def get_pafs_and_hms_heatmaps_v1(self, sk_keypoints):
         """
-        sk_keypoints: (38,) shaped keypoints with alternate x and y corrdinates for 19 joints; # these kp are in the image space (240x320)
+        sk_keypoints: (38,) shaped keypoints with alternate x and y coordinates for 19 joints; # these kp are in the image space (240x320)
         """
         
         # 3 from eggnog_preprocessing/preprocessing/read_videos_write_img_paf_hm.py

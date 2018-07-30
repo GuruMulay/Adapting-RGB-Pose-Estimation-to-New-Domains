@@ -25,7 +25,7 @@ import csv
 # 
 n_data_folders_per_layout = 4
 n_aug_images_per_frame = 5
-div_factor_aug = 5  # wiht 5 only _aug_0 is selected
+div_factor_aug = 5  # with 5 only _aug_0 is selected
 eggnog_meta_dir = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_meta/'
 verbose = False
 

@@ -26,10 +26,16 @@ class EggnogGlobalConfig:
     n_kp = 19
     n_axis = 2  # x and y as of now
     
+    avg_l_idx = 22
+    avg_r_idx = 23
+    
+    
     paf_pairs_indices = [[1, 14], [0, 1], [12, 0], [13, 0], 
                     [4, 14], [5, 4], [6, 5], [7, 6], [15, 7], [16, 6],
                     [8, 14], [9, 8], [10, 9], [11, 10], [17, 11], [18, 10],
-                    [14, 2], [2, 3]
+                    [14, 2], [2, 3],
+                    [12, 14], [13, 14], [14, 3],  # for having pafs common with coco
+                    [6, avg_l_idx], [10, avg_r_idx]  # pafs for wrist joints to corresponding averaged hand joints
                     ]
     # useful when loading the numpy files in the generator
     paf_indices_xy = [p for p in range(2*len(paf_pairs_indices))]
@@ -49,6 +55,16 @@ class EggnogGlobalConfig:
     eggnog19_to_coco_10_mapping = [3, 14, 4, 5, 6, 8, 9, 10, 12, 13]
     # head, spine_shoulder(neck), LSh, LEl, Lhand, RSh, REl, Rhand, LHip, RHip [left: L => image's left]
     
+    all_19_joint_indices = [i for i in range(18)] # EggnogGlobalConfig.joint_indices  # [i for i in range(19)]
+
+    common_joints_with_coco = eggnog19_to_eggnog_10_mapping
+
+    left_hand_joint_indices = [7, 15, 16]
+    right_hand_joint_indices = [11, 17, 18]
+
+    additional_spine_indices = [0, 1, 2]  # additional to what COCO dataset has or what was used during common training with COCO
+
+
     
     # haven't used following for eggnog
     parts = ["nose", "neck", "Rsho", "Relb", "Rwri", "Lsho", "Lelb", "Lwri", "Rhip", "Rkne", "Rank", "Lhip", "Lkne", "Lank", "Reye", "Leye", "Rear", "Lear"]
