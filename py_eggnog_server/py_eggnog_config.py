@@ -29,6 +29,7 @@ class EggnogGlobalConfig:
     avg_l_idx = 22
     avg_r_idx = 23
     
+    background_index = 20
     
     paf_pairs_indices = [[1, 14], [0, 1], [12, 0], [13, 0], 
                     [4, 14], [5, 4], [6, 5], [7, 6], [15, 7], [16, 6],
@@ -47,7 +48,8 @@ class EggnogGlobalConfig:
     
     # eggnog_to_coco_10_joints_mapping = np.array([0, 5, 6, 7, 2, 3, 4, 9, 8, 1])  # wrong
     # eggnog_to_coco_10_joints_mapping = np.array([0, 9, 4, 5, 6, 1, 2, 3, 8, 7])  # wrong right and left are swapped
-    eggnog_to_coco_10_joints_mapping = np.array([0, 9, 1, 2, 3, 4, 5, 6, 7, 8])  # array indexing is faster https://stackoverflow.com/questions/26194389/numpy-rearrange-array-based-upon-index-array
+    eggnog_to_coco_10_joints_mapping = [0, 9, 1, 2, 3, 4, 5, 6, 7, 8]
+    # eggnog_to_coco_10_joints_mapping = np.array([0, 9, 1, 2, 3, 4, 5, 6, 7, 8])  # array indexing is faster https://stackoverflow.com/questions/26194389/numpy-rearrange-array-based-upon-index-array
     
     eggnog19_to_eggnog_10_mapping = [3, 4, 5, 6, 8, 9, 10, 12, 13, 14]
     #

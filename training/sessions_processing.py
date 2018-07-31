@@ -23,11 +23,12 @@ import csv
 
 
 # 
-n_data_folders_per_layout = 4
+n_data_folders_per_layout = 5
 n_aug_images_per_frame = 5
 div_factor_aug = 5  # with 5 only _aug_0 is selected
 eggnog_meta_dir = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_meta/'
 verbose = False
+
 
 class Session:
 
@@ -122,7 +123,8 @@ class Session:
 
                 for video_folder in video_folders:
 
-                    if "version" not in video_folder and "augmented" not in video_folder:
+                    # if "version" not in video_folder and "augmented" not in video_folder:
+                    if "version" not in video_folder and "augmented" not in video_folder and "Aug" not in video_folder:
                         print("vf non-augmented ============= ", video_folder)
                         img_files = natsorted([im.split("_240x320")[0] for im in os.listdir(os.path.join(self.session_dir, layout, video_folder)) if im.endswith(".jpg") and "240x320" in im])
 
@@ -135,8 +137,10 @@ class Session:
                         # for file in img_files:
                            # print(file)
 
-                    elif "augmented_v1" in video_folder:
-                        print("vf augmented_v1 ============= ", video_folder)
+                    # elif "augmented_v1" in video_folder:
+                    elif "Aug_v1" in video_folder:
+                        # print("vf augmented_v1 ============= ", video_folder)
+                        print("vf Aug_v1 ============= ", video_folder)
                         img_files = natsorted([im.split("_240x320")[0] for im in os.listdir(os.path.join(self.session_dir, layout, video_folder)) if im.endswith(".jpg") and "240x320" in im])
 
                         # update dict
@@ -145,8 +149,10 @@ class Session:
                         else:
                             self.layoutB_aug1_dict[os.path.join(self.session_name, layout, video_folder)] = img_files
 
-                    elif "augmented" in video_folder:
-                        print("vf augmented ============= ", video_folder)
+                    # elif "augmented" in video_folder:
+                    elif "Aug_v0" in video_folder:
+                        # print("vf augmented ============= ", video_folder)
+                        print("vf Aug_v0 ============= ", video_folder)
                         img_files = natsorted([im.split("_240x320")[0] for im in os.listdir(os.path.join(self.session_dir, layout, video_folder)) if im.endswith(".jpg") and "240x320" in im])
 
                         # update dict

@@ -87,7 +87,11 @@ class DataGenerator(object):
                 if online_aug:
                     X, y1, y2, kp = self.__data_generation_online(file_IDs_temp, augment, mode, map_to_coco)
                 else:
-                    X, y1, y2, kp = self.__data_generation_offline(file_IDs_temp, augment, mode, map_to_coco, imagenet_dir)
+                    # version v0 where hm had shape of (30, 40, 20) and paf had a shape of (30, 40, 36). This required generation of backgound hm on the fly for common_joints case, as that common background hm was not available in the e.npy file
+                    # X, y1, y2, kp = self.__data_generation_offline(file_IDs_temp, augment, mode, map_to_coco, imagenet_dir)
+                    
+                    # version v1 (30th July, 2018). This version loads the saved common bacground hm from the .npy files
+                    X, y1, y2, kp = self.__data_generation_offline_v1(file_IDs_temp, augment, mode, map_to_coco, imagenet_dir)
                     
                 """
                 returns [x] = (batch_size, height (240), width (320), 3)
@@ -297,7 +301,7 @@ class DataGenerator(object):
     
     def __data_generation_offline(self, file_IDs_temp, augment, mode, map_to_coco, imagenet_dir):
         """
-        Offline version where data is read from the *_augmneted folders
+        Offline version where data is read from the *_augmented folders
         """
         # X: (n_samples == batch_size, height (240), width (320), n_channels (3) (rgb or bgr))
         
@@ -374,3 +378,62 @@ class DataGenerator(object):
                     
             
         return X, y1, y2, kp
+    
+    
+    def __data_generation_offline_v1(self, file_IDs_temp, augment, mode, map_to_coco, imagenet_dir):
+        """
+        Offline version where data is read from the *_Aug folders
+        """
+        # zero init helps in verifying dimensions of input image? during assignment?
+        X = np.empty((self.batch_size, self.height, self.width, self.n_channels), dtype=np.uint8)
+        y1 = np.empty((self.batch_size, self.paf_height, self.paf_width, self.paf_n_channels))  # 18 channels
+        y2 = np.empty((self.batch_size, self.hm_height, self.hm_width, self.hm_n_channels))  # 11 channels
+        # kp = np.empty((self.batch_size, (self.hm_n_channels-1)*2))  # (batch x (11-1)*2)  # e.g., 5x20
+        
+        # X = rgb images of original resolution (batch_size,240x320x3); y1 = pafs (batch_size,30x40x46); y2 = heatmaps (batch_size,30x40x25)
+        
+        # Generate data
+        for i, ID in enumerate(file_IDs_temp):
+            # print(ID)  # s07_1video/part1_layout_p14/20151116_230338_00_Video/# 20151116_230338_00_Video_vfr_105_skfr_105
+            # if imagenet file
+            if "train_set_" in ID:
+                imagenet_img = skimage.io.imread(os.path.join(imagenet_dir, ID))
+                if len(imagenet_img.shape) != 3:
+                    X[i, :, :, :] = np.zeros((self.height, self.width, self.n_channels))
+                    
+                elif imagenet_img.shape[0] > self.height and imagenet_img.shape[1] > self.width:  # can crop if shapes of read image are more than req shape
+                    # print("image shape", imagenet_img.shape)
+                    temp_img = imagenet_img[0:self.height, 0:self.width, :]
+                    # print("temp_img shape", temp_img.shape)
+                    X[i, :, :, :] = temp_img[:,:,::-1]  # [IMP: converting RGB to BGR to match with coco's BGR order]
+                    
+                else:
+                    temp_img = resize(imagenet_img, (self.height, self.width))
+                    # print("temp_img shape", temp_img.shape)
+                    X[i, :, :, :] = temp_img[:,:,::-1]  # [IMP: converting RGB to BGR to match with coco's BGR order]
+                    
+                hm_no_bk = np.zeros((self.hm_height, self.hm_width, self.hm_n_channels-1))
+                y2[i, :, :, :] = np.dstack(( hm_no_bk, (1 - np.max(hm_no_bk[:,:,:], axis=2)) ))
+                
+                y1[i, :, :, :] = np.zeros((self.paf_height, self.paf_width, self.paf_n_channels))
+            
+            else:
+                # load stored, augmented images and ground truth
+                X[i, :, :, :] = skimage.io.imread(os.path.join(self.data_path, ID + '_240x320.jpg'))[:,:,::-1]  # [IMP: converting RGB to BGR to match with coco's BGR order]
+
+                # Stored ground truths
+                paf_temp = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'), mmap_mode='r')  # 46 channels
+                hm_temp = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'), mmap_mode='r')  # 25 channels
+
+                hm_with_bk = hm_temp[:, :, np.array(EggnogGlobalConfig.joint_indices)]  # slice the loaded array using updated joint indices with the common coco joints background hm
+                if map_to_coco:
+                    y2[i, :, :, :] = hm_with_bk[:, :, EggnogGlobalConfig.eggnog_to_coco_10_joints_mapping + [-1]]
+                else:
+                    y2[i, :, :, :] = hm_with_bk
+
+                y1[i, :, :, :] = paf_temp[:, :, np.array(EggnogGlobalConfig.paf_indices_xy)]  # slice the loaded array using updated paf indices
+            
+            kp = None  # no need to read kp because it's not used after this line
+
+        return X, y1, y2, kp
+    

@@ -38,7 +38,8 @@ This version trains on both COCO and EGGNOG simultaneously and val sets are 2: o
 """
 # eggnog
 # for common set of joints between eggnog and coco
-remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common joints
+remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common joints + 1 background
+remove_joints_additional = [EggnogGlobalConfig.avg_l_idx, EggnogGlobalConfig.avg_r_idx]  # additional joints for average hands
 map_to_coco = True
 coco_type_masking = False
 add_imagenet_images = True
@@ -73,7 +74,7 @@ def update_config_as_per_removed_joints():
 
     for p, pair in enumerate(EggnogGlobalConfig.paf_pairs_indices):  # 18
         print("p, pair", p, pair)
-        if pair[0] in remove_joints or pair[1] in remove_joints:
+        if pair[0] in remove_joints + remove_joints_additional or pair[1] in remove_joints + remove_joints_additional:
             rm_pairs.append(pair)
             rm_paf_xy.append(2*p)  # add x paf map index to remove list
             rm_paf_xy.append(2*p+1)  # add y paf map index to remove list
@@ -89,12 +90,18 @@ def update_config_as_per_removed_joints():
     EggnogGlobalConfig.n_paf = len(EggnogGlobalConfig.paf_pairs_indices)*2
     assert(len(EggnogGlobalConfig.paf_indices_xy) == EggnogGlobalConfig.n_paf)
     
+    
+    # update background hm index
+    EggnogGlobalConfig.joint_indices.remove(19)
+    EggnogGlobalConfig.joint_indices.append(EggnogGlobalConfig.background_index)  #index 20 for coco common joints 
+    
     print("Updated joint info:")
     print("Final EggnogGlobalConfig.joint_indices", EggnogGlobalConfig.joint_indices)
     print("Final EggnogGlobalConfig.paf_pairs_indices", EggnogGlobalConfig.paf_pairs_indices)
-    print("Final EggnogGlobalConfig.paf_indices", EggnogGlobalConfig.paf_indices_xy)
+    print("Final EggnogGlobalConfig.paf_indices_xy", EggnogGlobalConfig.paf_indices_xy)
     print("EggnogGlobalConfig.n_kp, n_hm, n_paf", EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_hm, EggnogGlobalConfig.n_paf)
-
+    
+    
 
 update_config_as_per_removed_joints()
 
@@ -103,9 +110,9 @@ n_stages = 2
 train_in_finetune_mode = False
 preload_vgg = True
 split_sessionwise = 1  # 0 => version 0; 1 => version 1 with Session objects
-branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)  
+branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)  
 
-if branch_flag == 0 or branch_flag == 1:
+if branch_flag == 1:
     raise NotImplementedError("L1 containing version is not written yet because we do not have 3 sets of pafs stored in pre-generated .npy files in the gt _augmented folders. Those pafs are neck to hipL; neck to hipR; and nose to neck.")
 
 # stores train and val data
@@ -152,11 +159,12 @@ if split_sessionwise == 0:
     
 # sessionwise split
 if split_sessionwise == 1:
-#     train_sessions = ['s01', 's02', 's03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's11', 's12', 's17', 's21']
-    train_sessions = ['s03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's17', 's21']
-    val_sessions = ['s06', 's07', 's14', 's15']
-    n_train_imgs = 40000
-    n_val_imgs = 4000
+    train_sessions = ['s01', 's02', 's03']
+    # ['s01', 's02', 's03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's11', 's12', 's17', 's21']
+    val_sessions = ['s06', 's07']
+    # ['s06', 's07', 's14', 's15']
+    n_train_imgs = 1000
+    n_val_imgs = 100
     n_train_imgs_per_session = int(n_train_imgs/len(train_sessions))
     n_val_imgs_per_session = int(n_val_imgs/len(val_sessions))
     
@@ -206,7 +214,7 @@ print("eggnog_batch_size", eggnog_batch_size)
 
 base_lr = 1e-5
 momentum = 0.9
-weight_decay = 5e-2
+weight_decay = 1e-2
 lr_policy = "step"
 gamma = 0.9  # originally 0.333
 stepsize = 10000*17  # in original code each epoch is 121746 and step change is on 17th epoch
@@ -215,9 +223,9 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 print("weight_decay", weight_decay)
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0726180200pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0730180100pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -348,7 +356,7 @@ params = {'data_path': eggnog_dataset_path,
           'hm_width': 40,
           'hm_n_channels': EggnogGlobalConfig.n_hm,
           'branch_flag': branch_flag,
-          'save_transformed_path': None  #'/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r13/'
+          'save_transformed_path': '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r14/'
          }
 # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r3/'
 
@@ -435,7 +443,7 @@ def prepare_train_val_data_dict_object_based_version():
     for train_s in train_sessions:
         print("\ntrain_s ===============================", train_s)
         sess = Session(session_dir=os.path.join(eggnog_dataset_path, train_s), meta_dir=eggnog_meta_dir)
-        # sess.print_session_info()
+        sess.print_session_info()
         
         # draw n_train_imgs_per_session_aug examples from v0
         train_list_aug = sess.get_evenly_spaced_n_images(n_imgs=n_train_imgs_per_session_aug, get_aug=True, aug_version="v1")
