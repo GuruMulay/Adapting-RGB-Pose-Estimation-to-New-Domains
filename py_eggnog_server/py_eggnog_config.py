@@ -31,13 +31,25 @@ class EggnogGlobalConfig:
     
     background_index = 20
     
-    paf_pairs_indices = [[1, 14], [0, 1], [12, 0], [13, 0], 
-                    [4, 14], [5, 4], [6, 5], [7, 6], [15, 7], [16, 6],
-                    [8, 14], [9, 8], [10, 9], [11, 10], [17, 11], [18, 10],
-                    [14, 2], [2, 3],
-                    [12, 14], [13, 14], [14, 3],  # for having pafs common with coco
+    # [12, 14] means that vector going from 12 to 14
+#     paf_pairs_indices = [[1, 14], [0, 1], [12, 0], [13, 0], 
+#                     [4, 14], [5, 4], [6, 5], [7, 6], [15, 7], [16, 6],
+#                     [8, 14], [9, 8], [10, 9], [11, 10], [17, 11], [18, 10],
+#                     [14, 2], [2, 3],
+#                     [12, 14], [13, 14], [14, 3],  # for having pafs common with coco
+#                     [6, avg_l_idx], [10, avg_r_idx]  # pafs for wrist joints to corresponding averaged hand joints
+#                     ]
+    
+    # Turns out the paf vectors are point in opposite direction as compared to pafs of coco dataset.
+    # So need to regenerate them with following fixed pairs
+    paf_pairs_indices = [[14, 1], [1, 0], [0, 12], [0, 13], 
+                    [14, 4], [4, 5], [5, 6], [6, 7], [7, 15], [6, 16],
+                    [14, 8], [8, 9], [9, 10], [10, 11], [11, 17], [10, 18],
+                    [2, 14], [3, 2],
+                    [14, 12], [14, 13], [14, 3],  # for having pafs common with coco
                     [6, avg_l_idx], [10, avg_r_idx]  # pafs for wrist joints to corresponding averaged hand joints
                     ]
+    
     # useful when loading the numpy files in the generator
     paf_indices_xy = [p for p in range(2*len(paf_pairs_indices))]
     # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, ...., 34, 35]
@@ -48,7 +60,12 @@ class EggnogGlobalConfig:
     
     # eggnog_to_coco_10_joints_mapping = np.array([0, 5, 6, 7, 2, 3, 4, 9, 8, 1])  # wrong
     # eggnog_to_coco_10_joints_mapping = np.array([0, 9, 4, 5, 6, 1, 2, 3, 8, 7])  # wrong right and left are swapped
-    eggnog_to_coco_10_joints_mapping = [0, 9, 1, 2, 3, 4, 5, 6, 7, 8]
+    
+    # following two mapping work when you already load 11 hms and 18 pafs using the function def update_config_as_per_removed_joints(): in the train script
+    eggnog10_to_coco_10_joints_mapping = [0, 9, 1, 2, 3, 4, 5, 6, 7, 8]
+    # following maps [8, 9, 10, 11, 12, 13, 20, 21, 22, 23, 24, 25, 36, 37, 38, 39, 40, 41] to [36, 37, 38, 39, 8, 9, 10, 11, 12, 13, 20, 21, 22, 23, 24, 25, 40, 41] which matches with coco's seq of x, y pafs
+    eggnog18_to_coco_18_pafs_mapping = [12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17]
+    
     # eggnog_to_coco_10_joints_mapping = np.array([0, 9, 1, 2, 3, 4, 5, 6, 7, 8])  # array indexing is faster https://stackoverflow.com/questions/26194389/numpy-rearrange-array-based-upon-index-array
     
     eggnog19_to_eggnog_10_mapping = [3, 4, 5, 6, 8, 9, 10, 12, 13, 14]

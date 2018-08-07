@@ -424,14 +424,19 @@ class DataGenerator(object):
                 # Stored ground truths
                 paf_temp = np.load(os.path.join(self.data_path, ID + '_paf30x40.npy'), mmap_mode='r')  # 46 channels
                 hm_temp = np.load(os.path.join(self.data_path, ID + '_heatmap30x40.npy'), mmap_mode='r')  # 25 channels
-
+                
+                paf_all = paf_temp[:, :, np.array(EggnogGlobalConfig.paf_indices_xy)]  # 18 channels
                 hm_with_bk = hm_temp[:, :, np.array(EggnogGlobalConfig.joint_indices)]  # slice the loaded array using updated joint indices with the common coco joints background hm
+                
+                
                 if map_to_coco:
-                    y2[i, :, :, :] = hm_with_bk[:, :, EggnogGlobalConfig.eggnog_to_coco_10_joints_mapping + [-1]]
+                    y1[i, :, :, :] = paf_all[:, :, EggnogGlobalConfig.eggnog18_to_coco_18_pafs_mapping]  # 18 channels
+                    y2[i, :, :, :] = hm_with_bk[:, :, EggnogGlobalConfig.eggnog10_to_coco_10_joints_mapping + [-1]]  # 11 channels
                 else:
+                    y1[i, :, :, :] = paf_all
                     y2[i, :, :, :] = hm_with_bk
 
-                y1[i, :, :, :] = paf_temp[:, :, np.array(EggnogGlobalConfig.paf_indices_xy)]  # slice the loaded array using updated paf indices
+                # y1[i, :, :, :] = paf_temp[:, :, np.array(EggnogGlobalConfig.paf_indices_xy)]  # slice the loaded array using updated paf indices
             
             kp = None  # no need to read kp because it's not used after this line
 

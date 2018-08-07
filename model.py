@@ -37,7 +37,7 @@ def conv(x, nf, ks, name, weight_decay):
     
     # added spatial dropout (7/11)
     # print("Added spatial dropout")
-    x = SpatialDropout2D(rate=0.2, data_format='channels_last')(x)
+    x = SpatialDropout2D(rate=0.3, name=name, data_format='channels_last')(x)
 
     return x
 

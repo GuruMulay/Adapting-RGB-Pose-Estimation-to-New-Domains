@@ -96,7 +96,7 @@ class Test:
         
         # NETWORK PARAMAETERS
         self.n_stages = 2
-        self.branch_flag = 2  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)
+        self.branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)
         
         # sessions
         ##### ========================================= #####
@@ -120,7 +120,7 @@ class Test:
         ##### ========================================= #####
         self.test_sessions = ['s18', 's19']
         self.n_test_imgs = 10000
-        self.len_test_set = 100
+        self.len_test_set = 5000
         self.aug_fraction = 0.0  # use aug_fraction % of the images from aug set and remaining from original non_aug set
                 
         # loss calc
@@ -561,7 +561,13 @@ class Test:
 
             #
             # extract outputs, resize, and remove padding
-            heatmap = np.squeeze(output_blobs[0])  # output 0 is heatmaps for L2 only network
+            if self.branch_flag == 2:
+                heatmap = np.squeeze(output_blobs[0])  # output 0 is heatmaps for L2 only network
+            elif self.branch_flag == 0:
+                heatmap = np.squeeze(output_blobs[1])  # output 0 is heatmaps for L1 + L2 network
+            else:
+                raise NotImplementedError("L1 (paf) only version is not written yet.")
+                
             if verbose: print("after squeeze heatmap", heatmap.shape)
 
 #             # save to disk hm

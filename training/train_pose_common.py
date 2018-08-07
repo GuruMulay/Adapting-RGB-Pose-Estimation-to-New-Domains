@@ -30,7 +30,7 @@ from sessions_processing import Session
 NOTE:
 OFFLINE version
 With this version:
-Data can be read from *_augmented directories.
+Data can be read from *_augmented* or *_Aug* directories.
 
 More:
 This version trains on both COCO and EGGNOG simultaneously and val sets are 2: one for COCO and EGGNOG each.
@@ -43,7 +43,7 @@ remove_joints_additional = [EggnogGlobalConfig.avg_l_idx, EggnogGlobalConfig.avg
 map_to_coco = True
 coco_type_masking = False
 add_imagenet_images = True
-imagenet_fraction = 0.1
+imagenet_fraction = 0.0
 
 
 crop_to_square = False  # crop the images and gt to a square shape
@@ -102,7 +102,6 @@ def update_config_as_per_removed_joints():
     print("EggnogGlobalConfig.n_kp, n_hm, n_paf", EggnogGlobalConfig.n_kp, EggnogGlobalConfig.n_hm, EggnogGlobalConfig.n_paf)
     
     
-
 update_config_as_per_removed_joints()
 
 
@@ -113,7 +112,9 @@ split_sessionwise = 1  # 0 => version 0; 1 => version 1 with Session objects
 branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)  
 
 if branch_flag == 1:
-    raise NotImplementedError("L1 containing version is not written yet because we do not have 3 sets of pafs stored in pre-generated .npy files in the gt _augmented folders. Those pafs are neck to hipL; neck to hipR; and nose to neck.")
+    raise NotImplementedError("L1 (paf) only version is not written yet.")
+
+#     raise NotImplementedError("L1 containing version is not written yet because we do not have 3 sets of pafs stored in pre-generated .npy files in the gt _augmented folders. Those pafs are neck to hipL; neck to hipR; and nose to neck.")
 
 # stores train and val data
 partition_dict = {}
@@ -159,12 +160,10 @@ if split_sessionwise == 0:
     
 # sessionwise split
 if split_sessionwise == 1:
-    train_sessions = ['s01', 's02', 's03']
-    # ['s01', 's02', 's03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's11', 's12', 's17', 's21']
-    val_sessions = ['s06', 's07']
-    # ['s06', 's07', 's14', 's15']
-    n_train_imgs = 1000
-    n_val_imgs = 100
+    train_sessions = ['s01', 's02', 's03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's11', 's12', 's17', 's21']
+    val_sessions = ['s06', 's07', 's14', 's15']
+    n_train_imgs = 40000
+    n_val_imgs = 4000
     n_train_imgs_per_session = int(n_train_imgs/len(train_sessions))
     n_val_imgs_per_session = int(n_val_imgs/len(val_sessions))
     
@@ -214,7 +213,7 @@ print("eggnog_batch_size", eggnog_batch_size)
 
 base_lr = 1e-5
 momentum = 0.9
-weight_decay = 1e-2
+weight_decay = 5e-2
 lr_policy = "step"
 gamma = 0.9  # originally 0.333
 stepsize = 10000*17  # in original code each epoch is 121746 and step change is on 17th epoch
@@ -223,9 +222,9 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 print("weight_decay", weight_decay)
 
-os.environ["CUDA_VISIBLE_DEVICES"]="1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0730180100pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0807180100pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -356,7 +355,7 @@ params = {'data_path': eggnog_dataset_path,
           'hm_width': 40,
           'hm_n_channels': EggnogGlobalConfig.n_hm,
           'branch_flag': branch_flag,
-          'save_transformed_path': '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r14/'
+          'save_transformed_path': None  # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r17/'
          }
 # '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/transformed/r3/'
 
