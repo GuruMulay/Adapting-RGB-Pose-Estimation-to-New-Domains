@@ -25,8 +25,8 @@ np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
 
 # to test out incremental or decremental dropout
 decreasing_dropout = True
-spatial_dropout_rates_stage_1 = [0.25, 0.20, 0.15, 0.10, 0.05]
-spatial_dropout_rates_stage_t = [0.25, 0.20, 0.20, 0.15, 0.10, 0.10, 0.05]  # symmetric in ascending and descending order
+spatial_dropout_rates_stage_1 = [0, 0, 0, 0, 0]  # [0.25, 0.20, 0.15, 0.10, 0.05]
+spatial_dropout_rates_stage_t = [0, 0, 0, 0, 0, 0, 0]  # [0.25, 0.20, 0.20, 0.15, 0.10, 0.10, 0.05]  # symmetric in ascending and descending order
 
 if not decreasing_dropout:
     spatial_dropout_rates_stage_1 = spatial_dropout_rates_stage_1[::-1]
@@ -59,7 +59,7 @@ def pooling(x, ks, st, name):
     return x
 
 def vgg_block(x, weight_decay):
-    vgg_dropout_rate = 0.2
+    vgg_dropout_rate = 0.0  # 0.2
     print("vgg_dropout_rate", vgg_dropout_rate)
     
     # Block 1

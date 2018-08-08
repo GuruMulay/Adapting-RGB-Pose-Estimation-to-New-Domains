@@ -33,7 +33,7 @@ np_branch1 = 18  # 18 (keeping only common joints and paf pairs) # 38
 np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
 
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 EXP_BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/"
 eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
