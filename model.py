@@ -23,19 +23,40 @@ np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
 # np_branch1 = EggnogGlobalConfig.n_paf
 # np_branch2 = EggnogGlobalConfig.n_hm
 
+
 # to test out incremental or decremental dropout
 decreasing_dropout = True
-spatial_dropout_rates_stage_1 = [0, 0, 0, 0, 0]  # [0.25, 0.20, 0.15, 0.10, 0.05]
-spatial_dropout_rates_stage_t = [0, 0, 0, 0, 0, 0, 0]  # [0.25, 0.20, 0.20, 0.15, 0.10, 0.10, 0.05]  # symmetric in ascending and descending order
+train_spatial_dropout_rates_stage_1 = [0.25, 0.20, 0.15, 0.10, 0.05]
+train_spatial_dropout_rates_stage_t = [0.25, 0.20, 0.20, 0.15, 0.10, 0.10, 0.05]  # symmetric in ascending and descending order
 
 if not decreasing_dropout:
-    spatial_dropout_rates_stage_1 = spatial_dropout_rates_stage_1[::-1]
-    spatial_dropout_rates_stage_t = spatial_dropout_rates_stage_t[::-1]
+    train_spatial_dropout_rates_stage_1 = train_spatial_dropout_rates_stage_1[::-1]
+    train_spatial_dropout_rates_stage_t = train_spatial_dropout_rates_stage_t[::-1]
 
-print("spatial_dropout_rates_stage_1, spatial_dropout_rates_stage_t", spatial_dropout_rates_stage_1, spatial_dropout_rates_stage_t)
+train_vgg_dropout_rate = 0.2
+print("train_spatial_dropout_rates_stage_1, train_spatial_dropout_rates_stage_t, train_vgg_dropout_rate", train_spatial_dropout_rates_stage_1, train_spatial_dropout_rates_stage_t, train_vgg_dropout_rate)
 
 
+# def get_dropout_probs(mode="train", dropout_mode="constant"):
+#     vgg_dropout_rate = 0
+#     spatial_dropout_rates_stage_1 = [0, 0, 0, 0, 0]
+#     spatial_dropout_rates_stage_t = [0, 0, 0, 0, 0, 0, 0]
+    
+#     if mode == "train":
+#         print("Training mode dropout and dropout mode", dropout_mode)
+#         if dropout_mode == "constant":
+#             return 0.2, [0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]
+#         elif dropout_mode == "decreasing":
+#             return 0.2, [0.25, 0.20, 0.15, 0.10, 0.05], [0.25, 0.20, 0.20, 0.15, 0.10, 0.10, 0.05]
+#         else:
+#             return 0.2, [0.05, 0.10, 0.15, 0.20, 0.25], [0.05, 0.10, 0.10, 0.15, 0.2, 0.20, 0.25]
+#     else:
+#         print("Testing mode dropout = 0:")
+#         return vgg_dropout_rate, spatial_dropout_rates_stage_1, spatial_dropout_rates_stage_t
+    
+    
 def relu(x): return Activation('relu')(x)
+
 
 def conv(x, nf, ks, name, weight_decay, spatial_dropout_rate):
     kernel_reg = l2(weight_decay[0]) if weight_decay else None
@@ -49,6 +70,7 @@ def conv(x, nf, ks, name, weight_decay, spatial_dropout_rate):
     
     # added spatial dropout (7/11)
     # print("Added spatial dropout")
+    # x = SpatialDropout2D(rate=spatial_dropout_rate, data_format='channels_last')(x)
     x = SpatialDropout2D(rate=spatial_dropout_rate, name=name+"_sdropout", data_format='channels_last')(x)
 
     return x
@@ -58,8 +80,7 @@ def pooling(x, ks, st, name):
     x = MaxPooling2D((ks, ks), strides=(st, st), name=name)(x)
     return x
 
-def vgg_block(x, weight_decay):
-    vgg_dropout_rate = 0.0  # 0.2
+def vgg_block(x, weight_decay, vgg_dropout_rate):
     print("vgg_dropout_rate", vgg_dropout_rate)
     
     # Block 1
@@ -118,7 +139,7 @@ def vgg_block(x, weight_decay):
 
 
 # Using this for warm-starting prototype. The following names match with model.h5 file's names.
-def stage1_block(x, num_p, branch, weight_decay):
+def stage1_block(x, num_p, branch, weight_decay, spatial_dropout_rates_stage_1):
     # Block 1
     x = conv(x, 128, 3, "conv5_1_CPM_L%d" % branch, (weight_decay, 0), spatial_dropout_rates_stage_1[0])  # Assign_40
     x = relu(x)
@@ -137,12 +158,11 @@ def stage1_block(x, num_p, branch, weight_decay):
     return x
 
 
-
 """
 Renamed 1st conv layer in following method (for stage 2 onwards) because original paper has 128 (from VGG) + 38 (pafs) + 19 (hms) = 185 chanelled image (46x46) at the end of stage 1 or even stage n. So the saved weights for this conv layer has a shape of [128, 185, 7, 7] when loaded using load_weights(by_name=True). With eggnog dataset n_channels at the end of stage 1 or stage n is 128 (from VGG) + 36 (pafs) + 20 (hms) = 184 or less depending on the branch_flag [branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)]. Therefore, the original weights from model.h5 for 1st conv layer at each stage (>1) cannot be loaded into this modified eggnog weights which are shaped (184, 128, 7, 7). So, we need to rename these layers to avoid loading the weights by name.
 """
 
-def stageT_block(x, num_p, stage, branch, weight_decay):
+def stageT_block(x, num_p, stage, branch, weight_decay, spatial_dropout_rates_stage_t):
     # Block 1
     x = conv(x, 128, 7, "Mconv1_stage%d_L%d_EGGNOG" % (stage, branch), (weight_decay, 0), spatial_dropout_rates_stage_t[0])  # _24
     x = relu(x)
@@ -180,6 +200,10 @@ def get_training_model_eggnog_v1(weight_decay, gpus=None, stages=6, branch_flag=
     """
     This model has an additional flag for heatmap only network architecture 
     """
+    vgg_dropout_rate = train_vgg_dropout_rate
+    spatial_dropout_rates_stage_1 = train_spatial_dropout_rates_stage_1
+    spatial_dropout_rates_stage_t = train_spatial_dropout_rates_stage_t
+    
 #     assert(np_branch2 == EggnogGlobalConfig.n_hm)
 #     assert(np_branch1 == EggnogGlobalConfig.n_paf)
     
@@ -206,11 +230,11 @@ def get_training_model_eggnog_v1(weight_decay, gpus=None, stages=6, branch_flag=
     img_normalized = Lambda(lambda x: x / 256 - 0.5)(img_input)  # [-0.5, 0.5]
 
     # VGG
-    stage0_out = vgg_block(img_normalized, weight_decay)
+    stage0_out = vgg_block(img_normalized, weight_decay, vgg_dropout_rate)
 
     if branch_flag == 2:  # heatmaps only
         # stage 1 - branch 2 (confidence maps)
-        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay, spatial_dropout_rates_stage_1)
 
         x = Concatenate()([stage1_branch2_out, stage0_out])
         
@@ -219,7 +243,7 @@ def get_training_model_eggnog_v1(weight_decay, gpus=None, stages=6, branch_flag=
         # stage sn >= 2
         for sn in range(2, stages + 1):
             # stage SN - branch 2 (confidence maps)
-            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay, spatial_dropout_rates_stage_t)
 
             outputs.append(stageT_branch2_out)
 
@@ -228,10 +252,10 @@ def get_training_model_eggnog_v1(weight_decay, gpus=None, stages=6, branch_flag=
                 
     elif branch_flag == 0:  # both heatmap and pafs   
         # stage 1 - branch 1 (PAF)
-        stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, weight_decay)
+        stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, weight_decay, spatial_dropout_rates_stage_1)
 
         # stage 1 - branch 2 (confidence maps)
-        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay, spatial_dropout_rates_stage_1)
 
         x = Concatenate()([stage1_branch1_out, stage1_branch2_out, stage0_out])
 
@@ -241,12 +265,12 @@ def get_training_model_eggnog_v1(weight_decay, gpus=None, stages=6, branch_flag=
         # stage sn >= 2
         for sn in range(2, stages + 1):
             # stage SN - branch 1 (PAF)
-            stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, weight_decay)
+            stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, weight_decay, spatial_dropout_rates_stage_t)
             # don't have to apply masks becuase eggnog has everything labeled and only one person per frame
             # w1 = apply_mask(stageT_branch1_out, vec_weight_input, heat_weight_input, np_branch1, sn, 1)
 
             # stage SN - branch 2 (confidence maps)
-            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay, spatial_dropout_rates_stage_t)
             # don't have to apply masks becuase eggnog has everything labeled and only one person per frame
             # w2 = apply_mask(stageT_branch2_out, vec_weight_input, heat_weight_input, np_branch2, sn, 2)
 
@@ -414,7 +438,10 @@ def get_training_model(weight_decay, gpus=None, stages=6):
 
 
 def get_training_model_common(weight_decay, gpus=None, stages=6, branch_flag=0):
-
+    vgg_dropout_rate = train_vgg_dropout_rate
+    spatial_dropout_rates_stage_1 = train_spatial_dropout_rates_stage_1
+    spatial_dropout_rates_stage_t = train_spatial_dropout_rates_stage_t
+    
     img_input_shape = (None, None, 3)
     vec_input_shape = (None, None, np_branch1)
     heat_input_shape = (None, None, np_branch2)
@@ -436,14 +463,14 @@ def get_training_model_common(weight_decay, gpus=None, stages=6, branch_flag=0):
     img_normalized = Lambda(lambda x: x / 256 - 0.5)(img_input)  # [-0.5, 0.5]
 
     # VGG
-    stage0_out = vgg_block(img_normalized, weight_decay)
+    stage0_out = vgg_block(img_normalized, weight_decay, vgg_dropout_rate)
 
     if branch_flag == 2:  # heatmaps only
         inputs.append(img_input)
         inputs.append(heat_weight_input)
         
         # stage 1 - branch 2 (confidence maps)
-        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay, spatial_dropout_rates_stage_1)
         w2 = apply_mask(stage1_branch2_out, vec_weight_input, heat_weight_input, np_branch2, 1, 2)
         
         x = Concatenate()([stage1_branch2_out, stage0_out])
@@ -453,7 +480,7 @@ def get_training_model_common(weight_decay, gpus=None, stages=6, branch_flag=0):
         # stage sn >= 2
         for sn in range(2, stages + 1):
             # stage SN - branch 2 (confidence maps)
-            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay, spatial_dropout_rates_stage_t)
             w2 = apply_mask(stageT_branch2_out, vec_weight_input, heat_weight_input, np_branch2, sn, 2)
             
             outputs.append(w2)
@@ -467,11 +494,11 @@ def get_training_model_common(weight_decay, gpus=None, stages=6, branch_flag=0):
         inputs.append(heat_weight_input)
     
         # stage 1 - branch 1 (PAF)
-        stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, weight_decay)
+        stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, weight_decay, spatial_dropout_rates_stage_1)
         w1 = apply_mask(stage1_branch1_out, vec_weight_input, heat_weight_input, np_branch1, 1, 1)
         
         # stage 1 - branch 2 (confidence maps)
-        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, weight_decay, spatial_dropout_rates_stage_1)
         w2 = apply_mask(stage1_branch2_out, vec_weight_input, heat_weight_input, np_branch2, 1, 2)
         
         x = Concatenate()([stage1_branch1_out, stage1_branch2_out, stage0_out])
@@ -483,11 +510,11 @@ def get_training_model_common(weight_decay, gpus=None, stages=6, branch_flag=0):
         # stage sn >= 2
         for sn in range(2, stages + 1):
             # stage SN - branch 1 (PAF)
-            stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, weight_decay)
+            stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, weight_decay, spatial_dropout_rates_stage_t)
             w1 = apply_mask(stageT_branch1_out, vec_weight_input, heat_weight_input, np_branch1, sn, 1)
 
             # stage SN - branch 2 (confidence maps)
-            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, weight_decay, spatial_dropout_rates_stage_t)
             w2 = apply_mask(stageT_branch2_out, vec_weight_input, heat_weight_input, np_branch2, sn, 2)
 
             outputs.append(w1)
@@ -574,7 +601,10 @@ def get_training_model_common(weight_decay, gpus=None, stages=6, branch_flag=0):
 
 
 def get_testing_model_eggnog_v1(stages=2, branch_flag=2):
-
+    vgg_dropout_rate = 0
+    spatial_dropout_rates_stage_1 = [0, 0, 0, 0, 0]
+    spatial_dropout_rates_stage_t = [0, 0, 0, 0, 0, 0, 0]
+    
     img_input_shape = (None, None, 3)
     inputs = []
     outputs = []
@@ -586,19 +616,19 @@ def get_testing_model_eggnog_v1(stages=2, branch_flag=2):
 #     print("##### img_normlaized ", np.max(img_normalized ), np.min(img_normalized))
     
     # VGG
-    stage0_out = vgg_block(img_normalized, None)
+    stage0_out = vgg_block(img_normalized, None, vgg_dropout_rate)
 
     
     if branch_flag == 0:  # heatmaps and pafs both
         # stage 1
-        stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, None)
-        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, None)
+        stage1_branch1_out = stage1_block(stage0_out, np_branch1, 1, None, spatial_dropout_rates_stage_1)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, None, spatial_dropout_rates_stage_1)
         x = Concatenate()([stage1_branch1_out, stage1_branch2_out, stage0_out])
 
         # stage t >= 2
         for sn in range(2, stages + 1):
-            stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, None)
-            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, None)
+            stageT_branch1_out = stageT_block(x, np_branch1, sn, 1, None, spatial_dropout_rates_stage_t)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, None, spatial_dropout_rates_stage_t)
             if (sn < stages):
                 x = Concatenate()([stageT_branch1_out, stageT_branch2_out, stage0_out])
 
@@ -606,12 +636,12 @@ def get_testing_model_eggnog_v1(stages=2, branch_flag=2):
         
     elif branch_flag == 2:  # heatmaps only
         # stage 1
-        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, None)
+        stage1_branch2_out = stage1_block(stage0_out, np_branch2, 2, None, spatial_dropout_rates_stage_1)
         x = Concatenate()([stage1_branch2_out, stage0_out])
 
         # stage t >= 2
         for sn in range(2, stages + 1):
-            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, None)
+            stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, None, spatial_dropout_rates_stage_t)
             if (sn < stages):
                 x = Concatenate()([stageT_branch2_out, stage0_out])
 

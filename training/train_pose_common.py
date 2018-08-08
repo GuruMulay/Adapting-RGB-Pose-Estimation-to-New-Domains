@@ -224,7 +224,7 @@ print("weight_decay", weight_decay)
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0807180630pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0809180300pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
