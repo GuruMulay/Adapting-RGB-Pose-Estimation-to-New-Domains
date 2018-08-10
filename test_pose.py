@@ -5,6 +5,8 @@ sys.path.append("..")
 from glob import glob
 import pprint
 from model import get_testing_model_eggnog_v1
+# for testing 5000 eggnog images on rmpe
+from model_rmpe_test import get_rmpe_test_model
 
 # 
 import cv2
@@ -29,9 +31,6 @@ from scipy.ndimage.filters import gaussian_filter
 
 from operator import itemgetter
 
-np_branch1 = 18  # 18 (keeping only common joints and paf pairs) # 38
-np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
-
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
@@ -45,16 +44,27 @@ eggnog_meta_dir = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_meta/'
 add_imagenet_images = True
 imagenet_fraction = 0.0
 
-eggnog_testing = True
+eggnog_testing = True  # whether to use 320x240 or 368x368
 
-calculate_loss = True
+calculate_loss = False  # keep this false for rmpe testing!!!!!!!
 hm_save = False  # save predicted hms to disk
 kp_save = True
 img_save = True
 
 verbose = False
-verbose_pckh = False
-verbose_pck = False
+verbose_pckh = True
+verbose_pck = True
+
+rmpe_testing = True
+rmpe_weights_file = weights_path = "/s/parsons/h/proj/vision/usr/guru5/repos_cpm/keras_Realtime_Multi-Person_Pose_Estimation/model/keras/model.h5"
+rmpe_to_eggnog_slicing = [0,1,2,3,4,5,6,7,8,11]
+
+if rmpe_testing:
+    np_branch1 = 38
+    np_branch2 = 19
+else:
+    np_branch1 = 18  # 18 (keeping only common joints and paf pairs) # 38
+    np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
 
 
 random_seed = 1
@@ -96,6 +106,7 @@ class Test:
         
         # NETWORK PARAMAETERS
         self.n_stages = 2
+        self.n_stages_rmpe = 6
         self.branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)
         
         # sessions
@@ -207,12 +218,22 @@ class Test:
         print("creating a directory", self.BASE_DIR_TEST_IMAGES)
         os.makedirs(self.BASE_DIR_TEST_IMAGES, exist_ok=True)
 
-        # e.g., epoch_num = 100
-        model_file = self.BASE_DIR_TRAIN + 'weights_egg.%04d.h5'%(int(self.epoch_num))
-
-        self.model = get_testing_model_eggnog_v1(self.n_stages, self.branch_flag)
-        self.model.load_weights(model_file)
-    
+        
+        
+        if not rmpe_testing:
+            # e.g., epoch_num = 100
+            model_file = self.BASE_DIR_TRAIN + 'weights_egg.%04d.h5'%(int(self.epoch_num))
+            
+            self.model = get_testing_model_eggnog_v1(self.n_stages, self.branch_flag)
+            self.model.load_weights(model_file)
+            
+        else:  # this is rmpe testing so laod rmpe model and weights
+            assert(self.branch_flag == 0)
+            model_file = rmpe_weights_file
+            
+            self.model = get_rmpe_test_model(self.n_stages_rmpe)
+            self.model.load_weights(model_file)
+            
     
     def prepare_train_val_data_dict_object_based_version(self, n_test_imgs_per_session_aug, n_test_imgs_per_session_nonaug):
         # new version for eggnog dataset where images are drawn from the session objects
@@ -354,6 +375,10 @@ class Test:
             print("checking if anything is nan in the ground truth")
         assert(not np.isnan(gt_kp).any())
         
+        if rmpe_testing:
+            pred_kp = pred_kp[rmpe_to_eggnog_slicing, :]  # rmpe predicted joint 11 is rhip which is joint index 9 in eggnog-common architecture, see sheet 2
+            
+            
         pckh_mat_img = np.zeros(self.pckh_mat_avg.shape)  # (10, 16)
         pck_mat_img = np.zeros(self.pck_mat_avg.shape)  # (10, 16)
         
@@ -490,6 +515,9 @@ class Test:
     
     
     def show_overlapped_gt_and_pred(self, test_image, heatmap_avg, gt_kp, pred_kp):
+        if rmpe_testing:
+            pred_kp = pred_kp[rmpe_to_eggnog_slicing, :]  # rmpe predicted joint 11 is rhip which is joint index 9 in eggnog-common architecture, see sheet 2
+            
         i = -1  # only background hm
         fig, ax = plt.subplots(nrows=1, ncols=1)
         fig.set_size_inches((5, 5))
@@ -535,7 +563,7 @@ class Test:
                 oriImg = cv2.resize(oriImg, (EggnogGlobalConfig.width, EggnogGlobalConfig.height))
                 
         heatmap_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], np_branch2))
-        heatmap_avg_pred = np.zeros((int(EggnogGlobalConfig.height/EggnogGlobalConfig.ground_truth_factor), int(EggnogGlobalConfig.width/EggnogGlobalConfig.ground_truth_factor), 11))
+        heatmap_avg_pred = np.zeros((int(EggnogGlobalConfig.height/EggnogGlobalConfig.ground_truth_factor), int(EggnogGlobalConfig.width/EggnogGlobalConfig.ground_truth_factor), np_branch2))
         
         if not eggnog_testing:
             multiplier = [x * self.model_params['boxsize'] / oriImg.shape[0] for x in self.param['scale_search']]
@@ -599,7 +627,8 @@ class Test:
             hm_savefile = os.path.join(self.BASE_DIR_TEST_HEATMAPS, test_image.split("/")[-1].split(".")[0] + "_hm.npy") 
             np.save(hm_savefile, heatmap_avg_pred)
             # print("saving", hm_savefile, "heatmap_avg_pred.shape", heatmap_avg_pred.shape)
-                
+        
+        loss_hm = 0
         if calculate_loss:
             # pred_hm = np.load(hm_savefile)
             loss_hm = self.calculate_loss(test_image, heatmap_avg_pred)

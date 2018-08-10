@@ -25,7 +25,7 @@ np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
 
 
 # to test out incremental or decremental dropout
-decreasing_dropout = True
+decreasing_dropout = False
 train_spatial_dropout_rates_stage_1 = [0.25, 0.20, 0.15, 0.10, 0.05]
 train_spatial_dropout_rates_stage_t = [0.25, 0.20, 0.20, 0.15, 0.10, 0.10, 0.05]  # symmetric in ascending and descending order
 
@@ -604,6 +604,7 @@ def get_testing_model_eggnog_v1(stages=2, branch_flag=2):
     vgg_dropout_rate = 0
     spatial_dropout_rates_stage_1 = [0, 0, 0, 0, 0]
     spatial_dropout_rates_stage_t = [0, 0, 0, 0, 0, 0, 0]
+    print("test_spatial_dropout_rates_stage_1, test_spatial_dropout_rates_stage_t, test_vgg_dropout_rate", spatial_dropout_rates_stage_1, spatial_dropout_rates_stage_t, vgg_dropout_rate)
     
     img_input_shape = (None, None, 3)
     inputs = []
