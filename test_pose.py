@@ -144,14 +144,16 @@ class Test:
         
         # for pck
         self.b_box_method = "vertical_box" 
-        self.pck_at = [0.0, 0.02, 0.04, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]  # @_, @_, and @_
+#         self.pck_at = [0.0, 0.02, 0.04, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]  # @_, @_, and @_
+        self.pck_at = [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
         self.pck_mat_all = np.zeros((self.n_hm, len(self.pck_at), self.len_test_set))  # 10, 16, 1000
         self.pck_mat_avg = np.zeros((self.n_hm, len(self.pck_at)))  # 10, 16
         self.pck_pixel_norm_len = np.zeros((self.len_test_set, len(self.pck_at)))  # n_test x len(pck_at)
         
         # for pckh
         # self.pckh_h_factor = 0.5  # commneted becasue it's included in the list below
-        self.pckh_at = [0.0, 0.02, 0.04, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+#         self.pckh_at = [0.0, 0.02, 0.04, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+        self.pckh_at = [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
         self.pckh_mat_all = np.zeros((self.n_hm, len(self.pckh_at), self.len_test_set))  # 10, 16, 1000
         self.pckh_mat_avg = np.zeros((self.n_hm, len(self.pckh_at)))  # 10, 16
         self.pckh_pixel_norm_len = np.zeros((self.len_test_set, len(self.pckh_at)))  # n_test x len(pckh_at)

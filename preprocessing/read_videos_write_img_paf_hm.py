@@ -26,7 +26,7 @@ write_aug_imgs = True
 # eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_test/"  # for testing this python file
 eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
 # eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_s123/"  # for s01, s02, s03
-n_aug_per_image = 3
+n_aug_per_image = 2
 
 ### ********** ###
 process_s010203 = False

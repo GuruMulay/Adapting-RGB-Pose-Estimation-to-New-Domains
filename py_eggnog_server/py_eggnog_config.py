@@ -114,20 +114,38 @@ class EggnogGlobalConfig:
 
     
 class TransformationParams:
+    
+#     # _Aug_v1 =>
+#     target_dist = 1.0;  # 0.6; originally 0.6
+#     scale_prob = 0.5;   # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
+#     scale_min = 0.8;  # originally 0.5
+#     scale_max = 1.2;
+#     max_rotate_degree = 12.
+#     center_perterb_max = 40.  # x and y
+#     flip_prob = 0.5
+    
+#     # added for eggnog
+#     alpha = 2.25
+#     limb_width = 0.75  # pixels  # for low res pafs
+#     # limb_width = 1.25*4  # pixels  # for high res pafs used for verification
+    
+    
+    # _Aug_v0 =>
+    # To replicate augmentation used in the original RMPE paper
+    # https://github.com/ZheC/Realtime_Multi-Person_Pose_Estimation/blob/master/training/example_proto/pose_train_test.prototxt
 
     target_dist = 1.0;  # 0.6; originally 0.6
-    scale_prob = 0.5;   # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
-    scale_min = 0.8;  #  originally 0.5
-    scale_max = 1.2;
-    max_rotate_degree = 12.
+    scale_prob = 0.0;   # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
+    scale_min = 0.5;  # originally 0.5
+    scale_max = 1.1;
+    max_rotate_degree = 40.
     center_perterb_max = 40.  # x and y
-    flip_prob = 0.5
+    flip_prob = 0.0  # (they do not flip?)
     
     # added for eggnog
+    # looking at the coco gt, alpha 2.25 and l 0.75 looks closest to coco gt
     alpha = 2.25
     limb_width = 0.75  # pixels  # for low res pafs
-    # limb_width = 1.25*4  # pixels  # for high res pafs used for verification
-    
     
     # not sure why sigma is greater than 1 and so large (7)
     #!# sigma = 7.
@@ -135,7 +153,6 @@ class TransformationParams:
 
 
 class RmpeCocoConfig:
-
 
     parts = ['nose', 'Leye', 'Reye', 'Lear', 'Rear', 'Lsho', 'Rsho', 'Lelb',
      'Relb', 'Lwri', 'Rwri', 'Lhip', 'Rhip', 'Lkne', 'Rkne', 'Lank',
