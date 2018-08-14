@@ -211,9 +211,9 @@ print("coco_batch_size", coco_batch_size)
 eggnog_batch_size = int(batch_size*eggnog_fraction)
 print("eggnog_batch_size", eggnog_batch_size)
 
-base_lr = 1e-5
+base_lr = 4e-5
 momentum = 0.9
-weight_decay = 5e-2
+weight_decay = 5e-4
 lr_policy = "step"
 gamma = 0.9  # originally 0.333
 stepsize = 10000*17  # in original code each epoch is 121746 and step change is on 17th epoch
@@ -224,7 +224,7 @@ print("weight_decay", weight_decay)
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0809180300pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0814180600pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)

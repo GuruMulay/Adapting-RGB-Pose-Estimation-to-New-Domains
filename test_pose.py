@@ -55,7 +55,7 @@ verbose = False
 verbose_pckh = True
 verbose_pck = True
 
-rmpe_testing = True
+rmpe_testing = False
 rmpe_weights_file = weights_path = "/s/parsons/h/proj/vision/usr/guru5/repos_cpm/keras_Realtime_Multi-Person_Pose_Estimation/model/keras/model.h5"
 rmpe_to_eggnog_slicing = [0,1,2,3,4,5,6,7,8,11]
 
@@ -229,7 +229,7 @@ class Test:
             self.model = get_testing_model_eggnog_v1(self.n_stages, self.branch_flag)
             self.model.load_weights(model_file)
             
-        else:  # this is rmpe testing so laod rmpe model and weights
+        else:  # this is rmpe testing so load rmpe model and weights
             assert(self.branch_flag == 0)
             model_file = rmpe_weights_file
             

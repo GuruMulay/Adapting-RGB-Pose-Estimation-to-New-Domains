@@ -23,12 +23,12 @@ import csv
 
 
 # 
-n_data_folders_per_layout = 5
-n_aug_images_per_frame = 5
+n_data_folders_per_layout = 6  # 6 since creation of _Aug_v0
+n_aug_images_per_frame = 2  
 div_factor_aug = 5  # with 5 only _aug_0 is selected
 eggnog_meta_dir = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_meta/'
 verbose = False
-
+verbose_stats = True
 
 class Session:
 
@@ -87,7 +87,7 @@ class Session:
         pprint.pprint(self.layoutB_aug1_dict)
         """
         
-        if verbose:
+        if verbose_stats:
             self.print_layout_dict_stats(self.layoutA_dict, "self.layoutA_dict")
             self.print_layout_dict_stats(self.layoutA_aug0_dict, "self.layoutA_aug0_dict")
             self.print_layout_dict_stats(self.layoutA_aug1_dict, "self.layoutA_aug1_dict")
