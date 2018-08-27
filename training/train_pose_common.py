@@ -13,6 +13,7 @@ from keras.callbacks import LearningRateScheduler, ModelCheckpoint, CSVLogger, T
 from keras.layers.convolutional import Conv2D
 from keras.applications.vgg19 import VGG19
 import keras.backend as K
+from keras import losses
 
 from glob import glob
 
@@ -25,6 +26,9 @@ import pprint
 from py_eggnog_server.py_eggnog_config import EggnogGlobalConfig
 from imagenet_images import ImagenetImages
 from sessions_processing import Session
+
+import tensorflow as tf  # for huber loss
+
 
 """
 NOTE:
@@ -215,8 +219,8 @@ base_lr = 4e-5
 momentum = 0.9
 weight_decay = 5e-4
 lr_policy = "step"
-gamma = 0.9  # originally 0.333
-stepsize = 10000*17  # in original code each epoch is 121746 and step change is on 17th epoch
+gamma = 0.95  # originally 0.333
+stepsize = 136106  # 10000*17  # in original code each epoch is 121746 and step change is on 17th epoch
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
@@ -224,7 +228,7 @@ print("weight_decay", weight_decay)
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0814180600pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0822180500pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -334,9 +338,21 @@ for layer in model.layers:
             
 # configure loss functions
 # euclidean loss as implemented in caffe https://github.com/BVLC/caffe/blob/master/src/caffe/layers/euclidean_loss_layer.cpp
-def eucl_loss(x, y):
+def eucl_loss(x, y):  # x is y_true, y is y_pred
     l = K.sum(K.square(x - y)) / batch_size / 2
     return l
+
+def mean_absolute_error_loss(y_true, y_pred):
+    l = K.sum(K.abs(y_pred - y_true)) / batch_size / 2  # kept 2 because it's also used in eucl_loss
+    return l
+
+def huber_loss(y_true, y_pred):
+    return tf.losses.huber_loss(y_true, y_pred)
+    
+# use log_cosh from Keras.losses
+# def logcosh_loss(true, pred):
+#     loss = K.log(K.cosh(pred - true))
+#     return np.sum(loss)
 
 
 # eggonog sessions
@@ -583,6 +599,9 @@ if use_multiple_gpus is not None:
     model = multi_gpu_model(model, gpus=use_multiple_gpus)
 
 model.compile(loss=eucl_loss, optimizer=multisgd)
+# model.compile(loss=mean_absolute_error_loss, optimizer=multisgd)
+# model.compile(loss=losses.logcosh, optimizer=multisgd)
+# model.compile(loss=huber_loss, optimizer=multisgd)
 
 # if verbose_print:
 #     for lyr in model.layers:

@@ -23,8 +23,8 @@ import csv
 
 
 # 
-n_data_folders_per_layout = 6  # 6 since creation of _Aug_v0
-n_aug_images_per_frame = 2  
+n_data_folders_per_layout = 6  # 6 since the creation of _Aug_v1 and _Aug_v0
+n_aug_images_per_frame = 3  # for _Aug_v0 it's 2 and for _Aug_v1 it's 3
 div_factor_aug = 5  # with 5 only _aug_0 is selected
 eggnog_meta_dir = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_meta/'
 verbose = False

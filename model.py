@@ -27,8 +27,8 @@ np_branch2 = 11  # 11 (keeping only common joints and paf pairs) # 19
 # to test out incremental or decremental dropout
 # decreasing_dropout = False
 
-train_spatial_dropout_rates_stage_1 = [0.2, 0.2, 0.2, 0.2, 0.2]  # [0.25, 0.20, 0.15, 0.10, 0.05]
-train_spatial_dropout_rates_stage_t = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]  # [0.25, 0.20, 0.20, 0.15, 0.10, 0.10, 0.05]  # symmetric in ascending and descending order
+train_spatial_dropout_rates_stage_1 = [0.25, 0.20, 0.15, 0.10, 0.05]  # [0.2, 0.2, 0.2, 0.2, 0.2]  # [0.25, 0.20, 0.15, 0.10, 0.05]
+train_spatial_dropout_rates_stage_t = [0.25, 0.20, 0.20, 0.15, 0.10, 0.10, 0.05]  # [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]  # [0.25, 0.20, 0.20, 0.15, 0.10, 0.10, 0.05]  # symmetric in ascending and descending order
 
 # if not decreasing_dropout:
 #     train_spatial_dropout_rates_stage_1 = train_spatial_dropout_rates_stage_1[::-1]
