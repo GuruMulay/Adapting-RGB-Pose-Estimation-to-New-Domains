@@ -219,7 +219,7 @@ base_lr = 4e-5
 momentum = 0.9
 weight_decay = 5e-4
 lr_policy = "step"
-gamma = 0.95  # originally 0.333
+gamma = 0.90  # originally 0.333
 stepsize = 136106  # 10000*17  # in original code each epoch is 121746 and step change is on 17th epoch
 max_iter = 200
 use_multiple_gpus = None  # set None for 1 gpu, not 1
@@ -228,7 +228,7 @@ print("weight_decay", weight_decay)
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/common_train/0822180500pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/0905180100pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
