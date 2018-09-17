@@ -52,10 +52,10 @@ kp_save = True
 img_save = True
 
 verbose = False
-verbose_pckh = True
-verbose_pck = True
+verbose_pckh = False
+verbose_pck = False
 
-rmpe_testing = False
+rmpe_testing = True
 rmpe_weights_file = weights_path = "/s/parsons/h/proj/vision/usr/guru5/repos_cpm/keras_Realtime_Multi-Person_Pose_Estimation/model/keras/model.h5"
 rmpe_to_eggnog_slicing = [0,1,2,3,4,5,6,7,8,11]
 
@@ -105,7 +105,7 @@ class Test:
         self.model = None
         
         # NETWORK PARAMAETERS
-        self.n_stages = 2
+        self.n_stages = 4
         self.n_stages_rmpe = 6
         self.branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)
         
@@ -145,7 +145,10 @@ class Test:
         # for pck
         self.b_box_method = "vertical_box" 
 #         self.pck_at = [0.0, 0.02, 0.04, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]  # @_, @_, and @_
-        self.pck_at = [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+#         self.pck_at = [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+        self.pck_at = [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 
+                       0.20, 0.22, 0.24, 0.26, 0.28, 0.30, 0.32, 0.34, 0.36, 0.38, 
+                       0.40, 0.42, 0.44, 0.46, 0.48, 0.50]
         self.pck_mat_all = np.zeros((self.n_hm, len(self.pck_at), self.len_test_set))  # 10, 16, 1000
         self.pck_mat_avg = np.zeros((self.n_hm, len(self.pck_at)))  # 10, 16
         self.pck_pixel_norm_len = np.zeros((self.len_test_set, len(self.pck_at)))  # n_test x len(pck_at)
@@ -153,7 +156,10 @@ class Test:
         # for pckh
         # self.pckh_h_factor = 0.5  # commneted becasue it's included in the list below
 #         self.pckh_at = [0.0, 0.02, 0.04, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
-        self.pckh_at = [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+#         self.pckh_at = [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+        self.pckh_at = [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 
+                       0.20, 0.22, 0.24, 0.26, 0.28, 0.30, 0.32, 0.34, 0.36, 0.38, 
+                       0.40, 0.42, 0.44, 0.46, 0.48, 0.50]
         self.pckh_mat_all = np.zeros((self.n_hm, len(self.pckh_at), self.len_test_set))  # 10, 16, 1000
         self.pckh_mat_avg = np.zeros((self.n_hm, len(self.pckh_at)))  # 10, 16
         self.pckh_pixel_norm_len = np.zeros((self.len_test_set, len(self.pckh_at)))  # n_test x len(pckh_at)
@@ -717,6 +723,7 @@ class Test:
 if __name__ == "__main__":
     """
     Usage: provide exp_dir as argv[1], sys.argv[2] e.g., python test_pose.py common_train/0706180200pm/ 50
+    For rmpe_test = True python test_pose.py rmpe_test/test_320x240_v2/ 0
     """
     test = Test(sys.argv[1], sys.argv[2])
     test.test()
