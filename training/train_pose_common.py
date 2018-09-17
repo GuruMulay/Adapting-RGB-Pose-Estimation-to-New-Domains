@@ -164,10 +164,36 @@ if split_sessionwise == 0:
     
 # sessionwise split
 if split_sessionwise == 1:
+    # baseline => 14:4
     train_sessions = ['s01', 's02', 's03', 's04', 's05', 's16', 's20', 's08', 's09', 's10', 's11', 's12', 's17', 's21']
     val_sessions = ['s06', 's07', 's14', 's15']
-    n_train_imgs = 40000
-    n_val_imgs = 4000
+    
+#     # exNS1 12:3
+#     train_sessions = ['s01', 's02', 's03', 's04', 's05', 's16', 's08', 's09', 's10', 's11', 's12', 's17']
+#     val_sessions = ['s06', 's07', 's14']
+    
+#     # exNS2 10:3
+#     train_sessions = ['s01', 's02', 's03', 's04', 's05', 's08', 's09', 's10', 's11', 's12']
+#     val_sessions = ['s06', 's07', 's14']
+    
+#     # exNS3 8:2
+#     train_sessions = ['s01', 's02', 's03', 's04', 's08', 's09', 's10', 's11']
+#     val_sessions = ['s06', 's14']
+    
+#     # exNS4 6:2
+#     train_sessions = ['s01', 's02', 's03', 's08', 's09', 's10']
+#     val_sessions = ['s06', 's14']
+    
+#     # exNS5 4:1
+#     train_sessions = ['s01', 's02', 's08', 's09']
+#     val_sessions = ['s06']
+    
+#     # exNS6 2:1
+#     train_sessions = ['s01', 's08']
+#     val_sessions = ['s06']
+    
+    n_train_imgs = 80000
+    n_val_imgs = 8000
     n_train_imgs_per_session = int(n_train_imgs/len(train_sessions))
     n_val_imgs_per_session = int(n_val_imgs/len(val_sessions))
     
@@ -228,7 +254,7 @@ print("weight_decay", weight_decay)
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/0905180100pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/0905180400pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
