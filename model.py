@@ -634,8 +634,13 @@ def get_testing_model_eggnog_v1(stages=2, branch_flag=2):
             stageT_branch2_out = stageT_block(x, np_branch2, sn, 2, None, spatial_dropout_rates_stage_t)
             if (sn < stages):
                 x = Concatenate()([stageT_branch1_out, stageT_branch2_out, stage0_out])
-
-        model = Model(img_input, [stageT_branch1_out, stageT_branch2_out])
+        
+        # to accomodate for 1-staged network
+        if stages == 1:
+            model = Model(img_input, [stage1_branch1_out, stage1_branch2_out])
+        else:
+            model = Model(img_input, [stageT_branch1_out, stageT_branch2_out])
+        
         
     elif branch_flag == 2:  # heatmaps only
         # stage 1

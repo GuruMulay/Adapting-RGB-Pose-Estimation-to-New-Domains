@@ -192,8 +192,8 @@ if split_sessionwise == 1:
 #     train_sessions = ['s01', 's08']
 #     val_sessions = ['s06']
     
-    n_train_imgs = 80000
-    n_val_imgs = 8000
+    n_train_imgs = 40000
+    n_val_imgs = 4000
     n_train_imgs_per_session = int(n_train_imgs/len(train_sessions))
     n_val_imgs_per_session = int(n_val_imgs/len(val_sessions))
     
@@ -254,7 +254,7 @@ print("weight_decay", weight_decay)
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/0905180400pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/1005180500pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)

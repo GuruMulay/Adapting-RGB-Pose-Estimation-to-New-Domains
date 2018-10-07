@@ -55,7 +55,7 @@ verbose = False
 verbose_pckh = False
 verbose_pck = False
 
-rmpe_testing = True
+rmpe_testing = False
 rmpe_weights_file = weights_path = "/s/parsons/h/proj/vision/usr/guru5/repos_cpm/keras_Realtime_Multi-Person_Pose_Estimation/model/keras/model.h5"
 rmpe_to_eggnog_slicing = [0,1,2,3,4,5,6,7,8,11]
 
@@ -105,8 +105,8 @@ class Test:
         self.model = None
         
         # NETWORK PARAMAETERS
-        self.n_stages = 4
-        self.n_stages_rmpe = 6
+        self.n_stages = 6
+        self.n_stages_rmpe = 2
         self.branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)
         
         # sessions
@@ -240,7 +240,8 @@ class Test:
             model_file = rmpe_weights_file
             
             self.model = get_rmpe_test_model(self.n_stages_rmpe)
-            self.model.load_weights(model_file)
+            self.model.load_weights(model_file, by_name=True)
+            print("Loaded RMPE model with n_stage = ", self.n_stages_rmpe)
             
     
     def prepare_train_val_data_dict_object_based_version(self, n_test_imgs_per_session_aug, n_test_imgs_per_session_nonaug):
@@ -724,6 +725,8 @@ if __name__ == "__main__":
     """
     Usage: provide exp_dir as argv[1], sys.argv[2] e.g., python test_pose.py common_train/0706180200pm/ 50
     For rmpe_test = True python test_pose.py rmpe_test/test_320x240_v2/ 0
+    python test_pose.py exp1_v1/1002180300pm/ 100
+
     """
     test = Test(sys.argv[1], sys.argv[2])
     test.test()
