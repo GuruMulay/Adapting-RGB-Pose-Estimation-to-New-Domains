@@ -582,8 +582,8 @@ print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_sampl
 # val_samples_coco = 0
 # ##
 
-train_gen_common = DataGenCommon(train_di_eggnog, train_di_coco, eggnog_batch_size, coco_batch_size, n_stages)
-val_gen_common = DataGenCommon(val_di_eggnog, val_di_coco, eggnog_batch_size, coco_batch_size, n_stages)
+train_gen_common = DataGenCommon(train_di_eggnog, train_di_coco, eggnog_batch_size, coco_batch_size, n_stages, branch_flag)
+val_gen_common = DataGenCommon(val_di_eggnog, val_di_coco, eggnog_batch_size, coco_batch_size, n_stages, branch_flag)
 
 train_di = train_gen_common.gen_common()
 val_di = val_gen_common.gen_common()

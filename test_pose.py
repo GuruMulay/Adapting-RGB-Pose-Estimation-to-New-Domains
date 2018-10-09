@@ -105,7 +105,7 @@ class Test:
         self.model = None
         
         # NETWORK PARAMAETERS
-        self.n_stages = 6
+        self.n_stages = 2
         self.n_stages_rmpe = 2
         self.branch_flag = 0  # 0 => both branches; 1 => branch L1 only; 2 => branch L2 only (heatmaps only)
         

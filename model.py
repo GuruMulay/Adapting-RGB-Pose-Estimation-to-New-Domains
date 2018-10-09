@@ -444,6 +444,9 @@ def get_training_model_common(weight_decay, gpus=None, stages=6, branch_flag=0):
     spatial_dropout_rates_stage_1 = train_spatial_dropout_rates_stage_1
     spatial_dropout_rates_stage_t = train_spatial_dropout_rates_stage_t
     
+    np_branch1 = EggnogGlobalConfig.n_paf
+    np_branch2 = EggnogGlobalConfig.n_hm
+    
     img_input_shape = (None, None, 3)
     vec_input_shape = (None, None, np_branch1)
     heat_input_shape = (None, None, np_branch2)

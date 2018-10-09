@@ -19,12 +19,13 @@ save_transformed_path = None  #  '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_t
 
 class DataGenCommon:
     
-    def __init__(self, data_gen_eggnog, data_gen_coco, eggnog_batch_size, coco_batch_size, n_stages):
+    def __init__(self, data_gen_eggnog, data_gen_coco, eggnog_batch_size, coco_batch_size, n_stages, branch_flag):
         self.data_gen_eggnog = data_gen_eggnog
         self.data_gen_coco = data_gen_coco
         self.eggnog_batch_size = eggnog_batch_size
         self.coco_batch_size = coco_batch_size
         self.n_stages = n_stages
+        self.branch_flag = branch_flag
         
         self.records = 0
         self.records_eggnog = 0
@@ -90,13 +91,25 @@ class DataGenCommon:
                 idx = np.random.randint(self.eggnog_batch_size)  # batch size (e.g., 5 or 10)
                 
                 X = np.insert(tuple_eggnog[0][0], idx, tuple_coco[0][0][:,64:368-64,24:368-24,:], axis=0)
-                mask_in = np.insert(tuple_eggnog[0][1], idx, tuple_coco[0][1][:,8:46-8,3:46-3,:], axis=0)
-                
-                y = np.insert(tuple_eggnog[1][0], idx, tuple_coco[1][0][:,8:46-8,3:46-3,:], axis=0)
                 
                 # print("X.shape, mask_in.shape, y.shape", X.shape, mask_in.shape, y.shape)
                 
-                return [X, mask_in], [y] * self.n_stages
+                if self.branch_flag == 2:  # heatmap only
+                    mask_in2 = np.insert(tuple_eggnog[0][1], idx, tuple_coco[0][1][:,8:46-8,3:46-3,:], axis=0)
+                    y2 = np.insert(tuple_eggnog[1][0], idx, tuple_coco[1][0][:,8:46-8,3:46-3,:], axis=0)
+                    return [X, mask_in2], [y2] * self.n_stages
+                
+                elif self.branch_flag == 1:  # paf only (may not work)
+                    raise NotImplementedError("L1 (paf) only version is not written yet (iside ds_generators).")
+                
+                else:  # both heatmap and pafs
+                    mask_in1 = np.insert(tuple_eggnog[0][1], idx, tuple_coco[0][1][:,8:46-8,3:46-3,:], axis=0)
+                    y1 = np.insert(tuple_eggnog[1][0], idx, tuple_coco[1][0][:,8:46-8,3:46-3,:], axis=0)
+                    
+                    mask_in2 = np.insert(tuple_eggnog[0][2], idx, tuple_coco[0][2][:,8:46-8,3:46-3,:], axis=0)
+                    y2 = np.insert(tuple_eggnog[1][1], idx, tuple_coco[1][1][:,8:46-8,3:46-3,:], axis=0)
+                    
+                    return [X, mask_in1, mask_in2], [y1, y2] * self.n_stages
                 
                 
             if self.records%2 == 0 and tuple_eggnog is not None:
