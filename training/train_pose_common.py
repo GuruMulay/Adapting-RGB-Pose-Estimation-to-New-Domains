@@ -45,7 +45,7 @@ This version trains on both COCO and EGGNOG simultaneously and val sets are 2: o
 remove_joints = [0, 1, 2, 7, 11, 15, 16, 17, 18]  # total 9, so 19 - 9 = 10 common joints + 1 background
 remove_joints_additional = [EggnogGlobalConfig.avg_l_idx, EggnogGlobalConfig.avg_r_idx]  # additional joints for average hands
 map_to_coco = True
-coco_type_masking = True  # need to set it to true when doing common train with coco
+coco_type_masking = False  # need to set it to true when doing common train with coco
 add_imagenet_images = True
 imagenet_fraction = 0.0
 
@@ -231,8 +231,8 @@ print("crop_to_square", crop_to_square)
 print("------------------ Flags ----------------------------")
 
 
-batch_size = 40
-coco_fraction = 0.1
+batch_size = 50
+coco_fraction = 0.0
 eggnog_fraction = 1 - coco_fraction
 
 coco_batch_size = int(batch_size*coco_fraction)
@@ -254,7 +254,7 @@ print("weight_decay", weight_decay)
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/1008180600pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/1008181000pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -556,16 +556,16 @@ val_samples_eggnog = len(partition_dict['val'])  # 30  # 2476  len(partition_dic
 print("#### train_samples_eggnog, val_samples_eggnog", train_samples_eggnog, val_samples_eggnog)
 # For eggnog full/5 => partition dict train and val len 88334 29879
 
-### COCO
-train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=coco_batch_size)
-val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=coco_batch_size)
+# ### COCO
+# train_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/train_dataset_2014.h5", shuffle=True, augment=True, batch_size=coco_batch_size)
+# val_client_coco = DataIterator("/s/red/b/nobackup/data/eggnog_cpm/coco2014/val_dataset_2014.h5", shuffle=False, augment=False, batch_size=coco_batch_size)
 
-train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
-val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+# train_di_coco = train_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
+# val_di_coco = val_client_coco.gen(n_stages, use_eggnong_common_joints, branch_flag=branch_flag)
 
-train_samples_coco = int(coco_fraction*train_samples_eggnog)  # 117576  # 100  # 
-val_samples_coco = int(coco_fraction*val_samples_eggnog)  # 2476  # 30  # 
-print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
+# train_samples_coco = int(coco_fraction*train_samples_eggnog)  # 117576  # 100  # 
+# val_samples_coco = int(coco_fraction*val_samples_eggnog)  # 2476  # 30  # 
+# print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_samples_coco)
 
 ## for combined comment both of the below
 # ##1 train with only coco
@@ -575,12 +575,12 @@ print("#### train_samples_coco, val_samples_coco", train_samples_coco, val_sampl
 # val_samples_eggnog = 0
 # ##
 
-# ##2 train with only eggnog
-# train_di_coco = None
-# val_di_coco = None
-# train_samples_coco = 0
-# val_samples_coco = 0
-# ##
+##2 train with only eggnog
+train_di_coco = None
+val_di_coco = None
+train_samples_coco = 0
+val_samples_coco = 0
+##
 
 train_gen_common = DataGenCommon(train_di_eggnog, train_di_coco, eggnog_batch_size, coco_batch_size, n_stages, branch_flag)
 val_gen_common = DataGenCommon(val_di_eggnog, val_di_coco, eggnog_batch_size, coco_batch_size, n_stages, branch_flag)
