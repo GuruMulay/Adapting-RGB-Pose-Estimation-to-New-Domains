@@ -231,7 +231,7 @@ print("crop_to_square", crop_to_square)
 print("------------------ Flags ----------------------------")
 
 
-batch_size = 50
+batch_size = 40
 coco_fraction = 0.0
 eggnog_fraction = 1 - coco_fraction
 
@@ -254,7 +254,7 @@ print("weight_decay", weight_decay)
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/1008181000pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/1012180000pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
