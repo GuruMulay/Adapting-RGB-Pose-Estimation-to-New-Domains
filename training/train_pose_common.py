@@ -170,27 +170,75 @@ if split_sessionwise == 1:
     
 #     # exNS1 12:3
 #     train_sessions = ['s01', 's02', 's03', 's04', 's05', 's16', 's08', 's09', 's10', 's11', 's12', 's17']
-#     val_sessions = ['s06', 's07', 's14']
-    
+#     val_sessions = ['s06', 's07', 's14']  # 0905180500pm
+#     train_sessions = ['s01', 's02', 's03', 's04', 's05', 's20', 's08', 's09', 's10', 's11', 's12', 's21']
+#     val_sessions = ['s06', 's07', 's15']  # 0905180501pm
+#     train_sessions = ['s01', 's02', 's03', 's04', 's16', 's20', 's08', 's09', 's10', 's11', 's17', 's21']
+#     val_sessions = ['s06', 's14', 's15']  # 0905180502pm
+#     train_sessions = ['s01', 's02', 's03', 's05', 's16', 's20', 's08', 's09', 's10', 's12', 's17', 's21']
+#     val_sessions = ['s07', 's14', 's15']  # 0905180503pm
+#     train_sessions = ['s01', 's02', 's04', 's05', 's16', 's20', 's08', 's09', 's11', 's12', 's17', 's21']
+#     val_sessions = ['s06', 's07', 's14']  # 0905180504pm
+
 #     # exNS2 10:3
 #     train_sessions = ['s01', 's02', 's03', 's04', 's05', 's08', 's09', 's10', 's11', 's12']
-#     val_sessions = ['s06', 's07', 's14']
+#     val_sessions = ['s06', 's07', 's14']  # 0905180600pm
+#     train_sessions = ['s01', 's02', 's03', 's16', 's20', 's08', 's09', 's10', 's17', 's21']
+#     val_sessions = ['s06', 's07', 's15']  # 0905180601pm
+#     train_sessions = ['s01', 's04', 's05', 's16', 's20', 's08', 's11', 's12', 's17', 's21']
+#     val_sessions = ['s06', 's14', 's15']  # 0905180602pm
+#     train_sessions = ['s02', 's03', 's04', 's05', 's16', 's09', 's10', 's11', 's12', 's17']
+#     val_sessions = ['s07', 's14', 's15']  # 0905180603pm
+#     train_sessions = ['s01', 's03', 's04', 's05', 's20', 's08', 's10', 's11', 's12', 's21']
+#     val_sessions = ['s06', 's07', 's14']  # 0905180604pm
     
 #     # exNS3 8:2
 #     train_sessions = ['s01', 's02', 's03', 's04', 's08', 's09', 's10', 's11']
-#     val_sessions = ['s06', 's14']
-    
+#     val_sessions = ['s06', 's14']  # 1012180700pm
+#     train_sessions = ['s02', 's03', 's04', 's05', 's09', 's10', 's11', 's12']
+#     val_sessions = ['s06', 's15']  # 1012180701pm
+#     train_sessions = ['s03', 's04', 's05', 's16', 's10', 's11', 's12', 's17']
+#     val_sessions = ['s07', 's14']  # 1012180702pm
+#     train_sessions = ['s04', 's05', 's16', 's20', 's11', 's12', 's17', 's21']
+#     val_sessions = ['s07', 's15']  # 1012180703pm
+#     train_sessions = ['s01', 's04', 's05', 's20', 's08', 's11', 's12', 's21']
+#     val_sessions = ['s06', 's14']  # 1012180704pm
+
 #     # exNS4 6:2
 #     train_sessions = ['s01', 's02', 's03', 's08', 's09', 's10']
-#     val_sessions = ['s06', 's14']
+#     val_sessions = ['s06', 's14']  # 1010180800pm
+#     train_sessions = ['s04', 's05', 's16', 's11', 's12', 's17']
+#     val_sessions = ['s06', 's15']  # 1010180801pm
+#     train_sessions = ['s03', 's05', 's20', 's10', 's12', 's21']
+#     val_sessions = ['s07', 's14']  # 1010180802pm
+#     train_sessions = ['s02', 's04', 's16', 's09', 's11', 's17']
+#     val_sessions = ['s07', 's15']  # 1010180803pm
+#     train_sessions = ['s01', 's16', 's20', 's08', 's17', 's21']
+#     val_sessions = ['s06', 's14']  # 1010180804pm
     
 #     # exNS5 4:1
 #     train_sessions = ['s01', 's02', 's08', 's09']
-#     val_sessions = ['s06']
-    
+#     val_sessions = ['s06']  # 1010180900pm
+#     train_sessions = ['s03', 's04', 's10', 's11']
+#     val_sessions = ['s07']  # 1010180901pm
+#     train_sessions = ['s05', 's16', 's12', 's17']
+#     val_sessions = ['s14']  # 1010180902pm
+#     train_sessions = ['s20', 's01', 's21', 's08']
+#     val_sessions = ['s15']  # 1010180903pm
+#     train_sessions = ['s03', 's16', 's10', 's17']
+#     val_sessions = ['s06']  # 1010180904pm
+
 #     # exNS6 2:1
 #     train_sessions = ['s01', 's08']
-#     val_sessions = ['s06']
+#     val_sessions = ['s06']  # 1010180930pm
+#     train_sessions = ['s02', 's09']
+#     val_sessions = ['s07']  # 1010180931pm
+#     train_sessions = ['s03', 's10']
+#     val_sessions = ['s14']  # 1010180932pm
+#     train_sessions = ['s04', 's11']
+#     val_sessions = ['s15']  # 1010180933pm
+#     train_sessions = ['s05', 's12']
+#     val_sessions = ['s06']  # 1010180934pm
     
     n_train_imgs = 40000
     n_val_imgs = 4000
@@ -247,7 +295,7 @@ weight_decay = 5e-4
 lr_policy = "step"
 gamma = 0.90  # originally 0.333
 stepsize = 136106  # 10000*17  # in original code each epoch is 121746 and step change is on 17th epoch
-max_iter = 200
+max_iter = 105
 use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 print("weight_decay", weight_decay)
