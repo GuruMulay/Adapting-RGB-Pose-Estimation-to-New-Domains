@@ -49,7 +49,7 @@ eggnog_testing = True  # whether to use 320x240 or 368x368
 calculate_loss = False  # keep this false for rmpe testing!!!!!!!
 hm_save = False  # save predicted hms to disk
 kp_save = True
-img_save = True
+img_save = False
 
 verbose = False
 verbose_pckh = False
