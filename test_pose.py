@@ -49,7 +49,7 @@ eggnog_testing = True  # whether to use 320x240 or 368x368
 calculate_loss = False  # keep this false for rmpe testing!!!!!!!
 hm_save = False  # save predicted hms to disk
 kp_save = True
-img_save = False
+img_save = True
 
 verbose = False
 verbose_pckh = False
@@ -523,6 +523,49 @@ class Test:
         return all_peaks
     
     
+    def show_overlapped_gt_and_pred_v1(self, test_image, heatmap_avg, gt_kp, pred_kp):
+        if rmpe_testing:
+            pred_kp = pred_kp[rmpe_to_eggnog_slicing, :]  # rmpe predicted joint 11 is rhip which is joint index 9 in eggnog-common architecture, see sheet 2
+            
+        i = -1  # only background hm
+        
+        # =========================
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        fig.set_size_inches((5, 5))
+        
+        oriImg = cv2.imread(test_image)  # B,G,R order
+        ax.imshow(oriImg[:,:,[2,1,0]])
+        
+        x = gt_kp[...,0]
+        y = gt_kp[...,1]
+        a1 = ax.scatter(x, y, c='b', alpha=0.75, s=15)
+#         for n, txt in enumerate(self.joints_short):
+#             ax.annotate(txt, (x[n],y[n]), fontsize=5, color='white')
+        
+        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_gt.png'))
+        
+        # =========================
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        fig.set_size_inches((5, 5))
+        
+        oriImg = cv2.imread(test_image)  # B,G,R order
+        ax.imshow(oriImg[:,:,[2,1,0]])
+        
+        x = pred_kp[...,0]
+        y = pred_kp[...,1]
+        a2 = ax.scatter(x, y, c='gold', alpha=0.75, s=15)
+#         for n, txt in enumerate(self.joints_short):
+#             ax.annotate(txt, (x[n],y[n]), fontsize=5, color='darkslategrey')
+        
+        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_pred.png'))
+        
+#         ax_h = ax.imshow(heatmap_avg[:,:,i], alpha=.70) 
+#         ax.legend([a1, a2], ["GTruth", "Pred"])
+#         fig.colorbar(ax_h, ax=ax)
+        
+#         fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '.png'))
+    
+    
     def show_overlapped_gt_and_pred(self, test_image, heatmap_avg, gt_kp, pred_kp):
         if rmpe_testing:
             pred_kp = pred_kp[rmpe_to_eggnog_slicing, :]  # rmpe predicted joint 11 is rhip which is joint index 9 in eggnog-common architecture, see sheet 2
@@ -545,10 +588,9 @@ class Test:
         a2 = ax.scatter(x, y, c='k', alpha=0.5, marker='*', s=5)
         for n, txt in enumerate(self.joints_short):
             ax.annotate(txt, (x[n],y[n]), fontsize=5, color='darkslategrey')
-            
+        
         ax_h = ax.imshow(heatmap_avg[:,:,i], alpha=.70) 
         ax.legend([a1, a2], ["GTruth", "Pred"])
-        
         fig.colorbar(ax_h, ax=ax)
         
         fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '.png'))
@@ -680,7 +722,7 @@ class Test:
         
         # show and save overlapped gt and pred
         if img_save:
-            self.show_overlapped_gt_and_pred(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
+            self.show_overlapped_gt_and_pred_v1(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
         
         return loss_hm
                 
