@@ -40,6 +40,7 @@ eggnog_dataset_path = "/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/"
 imagenet_dir = '/s/red/a/nobackup/imagenet/images/train/'
 eggnog_meta_dir = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_meta/'
 
+test_video = True
 
 add_imagenet_images = True
 imagenet_fraction = 0.0
@@ -92,10 +93,18 @@ def eucl_loss_np(x, y):
 
 class Test:
     
-    def __init__(self, experiment_dir, epoch_num):
+    def __init__(self, experiment_dir, epoch_num, video_path):
         
         self.experiment_dir = experiment_dir
         self.epoch_num = epoch_num
+        
+        # to test video only
+        self.video_path = video_path  # /s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/s18/part1_layouts_p36/20160129_192616_00_Video.avi
+        self.video_name = self.video_path.split("/")[-1]  # 20160129_192616_00_Video.avi
+        self.video_folder_name = self.video_name.split(".")[0]  # 20160129_192616_00_Video
+        self.video_layout_name = self.video_path.split("/")[-2]  # part1_layouts_p36
+        self.video_session_name = self.video_path.split("/")[-3]  # s18
+        self.test_session_for_video = [str(self.video_path.split("/")[-3])]  # "s18" or "s19"
         
         self.BASE_DIR_TRAIN = os.path.join(EXP_BASE_DIR, self.experiment_dir + "training/weights_egg/")
         
@@ -103,6 +112,7 @@ class Test:
         self.BASE_DIR_TEST_HEATMAPS = ""
         self.BASE_DIR_TEST_RESULTS = ""
         self.BASE_DIR_TEST_IMAGES = ""
+        self.BASE_DIR_TEST_VIDEO = ""
         
         # stores test data
         self.partition_dict = {}
@@ -178,6 +188,81 @@ class Test:
         self.model_params = None
         
         
+    def test_video(self, ):
+        print("testing video", self.video_path, self.video_name, "in session", self.test_session_for_video)
+        
+        #1
+        self.prepare_testset_and_load_model_for_video()
+ 
+        # 2 config
+        self.param, self.model_params = config_reader('config')
+        print("self.param", self.param, type(self.param))
+        print("self.model_params", self.model_params, type(self.model_params))
+        ### TODO write and change config
+
+        # param_dict = {'use_gpu': 1, 'GPUdeviceNumber': 0, 'modelID': '1', 'octave': 3, 'starting_range': 0.8, 'ending_range': 2.0, 'scale_search': [1, 1, 1], 'thre1': 0.1, 'thre2': 0.05, 'thre3': 0.5, 'min_num': 4, 'mid_num': 10, 'crop_ratio': 2.5, 'bbox_ratio': 0.25}
+    
+        # 3
+        self.run_test_on_imgs()
+        
+        
+    def prepare_testset_and_load_model_for_video(self,):
+        
+        print("\nself.n_stages", self.n_stages)
+        print("self.branch_flag: [1 => branch L1 only; 2 => branch L2 only (heatmaps only)] ======", self.branch_flag)
+        
+        self.prepare_train_val_data_dict_object_based_version_for_videos()
+        
+        self.BASE_DIR_TEST_VIDEO = os.path.join(EXP_BASE_DIR, self.experiment_dir + "testing/videos/", self.video_folder_name)
+        print("creating a directory", self.BASE_DIR_TEST_VIDEO)
+        os.makedirs(self.BASE_DIR_TEST_VIDEO, exist_ok=True)
+        
+             
+        if not rmpe_testing:
+            # e.g., epoch_num = 100
+            model_file = self.BASE_DIR_TRAIN + 'weights_egg.%04d.h5'%(int(self.epoch_num))
+            
+            self.model = get_testing_model_eggnog_v1(self.n_stages, self.branch_flag)
+            self.model.load_weights(model_file)
+            
+        else:  # this is rmpe testing so load rmpe model and weights
+            assert(self.branch_flag == 0)
+            model_file = rmpe_weights_file
+            
+            self.model = get_rmpe_test_model(self.n_stages_rmpe)
+            self.model.load_weights(model_file, by_name=True)
+            print("Loaded RMPE model with n_stage = ", self.n_stages_rmpe)
+        
+        
+    def prepare_train_val_data_dict_object_based_version_for_videos(self,):
+        # 
+        partition_test = []
+        self.partition_dict['test'] = []
+
+        ## create Session objects and withdraw images
+        for test_s in self.test_session_for_video:
+            print("\ntest_s ===============================", test_s)
+            sess = Session(session_dir=os.path.join(eggnog_dataset_path, test_s), meta_dir=eggnog_meta_dir)
+            sess.print_session_info()                
+                
+            partition_test = sess.get_all_the_frame_of_specific_video(self.video_session_name + "/" + self.video_layout_name + "/" + self.video_folder_name)
+
+        print("After session objects draw: len(partition_test)", len(partition_test))
+
+#         # shuffle test list
+#         random.seed(random_seed)
+#         random.shuffle(partition_test)
+
+        # create test dict
+        for i, img in enumerate(partition_test):    
+            self.partition_dict['test'].append(img)
+            if verbose: print("image i", i, img)
+             
+        self.total_test_samples = len(self.partition_dict['test'])
+        print("\n##### final test_samples", len(self.partition_dict['test']))
+        
+        
+        
     def test(self,):
         # 1
         self.prepare_testset_and_load_model()
@@ -247,7 +332,8 @@ class Test:
             self.model = get_rmpe_test_model(self.n_stages_rmpe)
             self.model.load_weights(model_file, by_name=True)
             print("Loaded RMPE model with n_stage = ", self.n_stages_rmpe)
-            
+        
+        
     
     def prepare_train_val_data_dict_object_based_version(self, n_test_imgs_per_session_aug, n_test_imgs_per_session_nonaug):
         # new version for eggnog dataset where images are drawn from the session objects
@@ -784,8 +870,19 @@ if __name__ == "__main__":
     Usage: provide exp_dir as argv[1], sys.argv[2] e.g., python test_pose.py common_train/0706180200pm/ 50
     For rmpe_test = True python test_pose.py rmpe_test/test_320x240_v2/ 0
     python test_pose.py exp1_v1/1002180300pm/ 100
+    python test_pose_videos.py exp1_v1/1005180500pm/ 100 /s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/s18/part1_layouts_p36/20160129_192616_00_Video.avi
 
     """
-    test = Test(sys.argv[1], sys.argv[2])
-    test.test()
-    print("Testing done!")
+    
+    if len(sys.argv) != 3 or len(sys.argv) != 4:
+        print("Usage python test_pose.py exp1_v1/1002180300pm/ 100 OR test_pose.py exp1_v1/1002180300pm/ 100 /path/to/video")
+    
+    if len(sys.argv) == 3:
+        test = Test(sys.argv[1], sys.argv[2], None)
+        test.test()
+        print("Testing done!")
+        
+    if len(sys.argv) == 4:
+        test = Test(sys.argv[1], sys.argv[2], sys.argv[3])
+        test.test_video()
+        print("Testing done for video!")

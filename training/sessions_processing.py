@@ -27,7 +27,7 @@ n_data_folders_per_layout = 6  # 6 since the creation of _Aug_v1 and _Aug_v0
 n_aug_images_per_frame = 3  # for _Aug_v0 it's 2 and for _Aug_v1 it's 3
 div_factor_aug = 5  # with 5 only _aug_0 is selected
 eggnog_meta_dir = '/s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm_meta/'
-verbose = False
+verbose = True
 verbose_stats = True
 
 class Session:
@@ -209,13 +209,39 @@ class Session:
     
     def __get_image_list_from_dict_aug(self, layout_dict, div_factor, div_factor_aug):
         frame_list = []
-        for v in layout_dict.keys():
+        for v in layout_dict.keys():  #  v for video
             for f in layout_dict[v]:  # example: 20151203_234151_00_Video_vfr_0_skfr_0_aug_0
                 if int(f.split("_")[-5])%div_factor == 0 and int(f.split("_")[-1])%div_factor_aug == 0:
                     frame_list.append(os.path.join(v, f))
                     # print("added ", os.path.join(v, f))
          
         return frame_list
+        
+        
+    def __get_all_frames_from_video(self, layout_dict, key):
+        frame_list = []
+        for val in layout_dict[key]:
+            frame_list.append(os.path.join(key, val))
+            print("added ", os.path.join(key, val))
+        return frame_list
+    
+    
+    def get_all_the_frame_of_specific_video(self, layout_dict_key_name):
+        
+        print("===========================================================")
+        print("READING ALL THE FRAMES OF VIDEO", layout_dict_key_name)
+        #print("layout dict key is", layout_dict_key_name)
+        print("===========================================================")
+        
+        if layout_dict_key_name in self.layoutA_dict:
+            frame_list = self.__get_all_frames_from_video(self.layoutA_dict, layout_dict_key_name)  # 1 => read all frames
+            print("Added n elements from layout A", len(frame_list))
+            return frame_list        
+        
+        elif layout_dict_key_name in self.layoutB_dict:
+            frame_list = self.__get_all_frames_from_video(self.layoutB_dict, layout_dict_key_name)  # 1 => read all frames
+            print("Added n elements from layout B", len(frame_list))
+            return frame_list
         
         
     def get_evenly_spaced_n_images(self, n_imgs, get_aug=False, aug_version=""):
