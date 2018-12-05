@@ -50,7 +50,7 @@ eggnog_testing = True  # whether to use 320x240 or 368x368
 calculate_loss = False  # keep this false for rmpe testing!!!!!!!
 hm_save = False  # save predicted hms to disk
 kp_save = True
-img_save = False
+img_save = True
 
 verbose = False
 verbose_pckh = False
@@ -112,6 +112,7 @@ class Test:
         self.BASE_DIR_TEST_HEATMAPS = ""
         self.BASE_DIR_TEST_RESULTS = ""
         self.BASE_DIR_TEST_IMAGES = ""
+        
         self.BASE_DIR_TEST_VIDEO = ""
         
         # stores test data
@@ -216,6 +217,24 @@ class Test:
         self.BASE_DIR_TEST_VIDEO = os.path.join(EXP_BASE_DIR, self.experiment_dir + "testing/videos/", self.video_folder_name)
         print("creating a directory", self.BASE_DIR_TEST_VIDEO)
         os.makedirs(self.BASE_DIR_TEST_VIDEO, exist_ok=True)
+        
+        self.BASE_DIR_TEST_KP = os.path.join(self.BASE_DIR_TEST_VIDEO, "kp")
+        print("creating a directory", self.BASE_DIR_TEST_KP)
+        os.makedirs(self.BASE_DIR_TEST_KP, exist_ok=True)
+
+        self.BASE_DIR_TEST_HEATMAPS = os.path.join(self.BASE_DIR_TEST_VIDEO, "heatmaps")
+        print("creating a directory", self.BASE_DIR_TEST_HEATMAPS)
+        os.makedirs(self.BASE_DIR_TEST_HEATMAPS, exist_ok=True)
+        
+        self.BASE_DIR_TEST_RESULTS = os.path.join(self.BASE_DIR_TEST_VIDEO, "results")
+        print("creating a directory", self.BASE_DIR_TEST_RESULTS)
+        os.makedirs(self.BASE_DIR_TEST_RESULTS, exist_ok=True)
+        
+        self.BASE_DIR_TEST_IMAGES = os.path.join(self.BASE_DIR_TEST_VIDEO, "images")
+        print("creating a directory", self.BASE_DIR_TEST_IMAGES)
+        os.makedirs(self.BASE_DIR_TEST_IMAGES, exist_ok=True)
+        
+
         
              
         if not rmpe_testing:
@@ -624,15 +643,25 @@ class Test:
         MEDIUM_SIZE = 16
         plt.rc('xtick', labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
         plt.rc('ytick', labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
-
+        
+#         plt.axis('off')
+        
         i = -1  # only background hm
         
         # =========================
         fig, ax = plt.subplots(nrows=1, ncols=1)
-        fig.set_size_inches((5, 5))
+        #fig.set_size_inches((5, 5))
+        #ax = plt.Axes(fig, [0., 0., 1., 1.])
+        ax.set_axis_off()
+        #fig.add_axes(ax)
+        #ax.axis('off')
+        extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        #extent = matplotlib.transforms.Bbox(((0.765, 0.493), (5.795, 4.2589999999999995)))
+        #print("extent", extent)
         
         oriImg = cv2.imread(test_image)  # B,G,R order
         ax.imshow(oriImg[:,:,[2,1,0]], alpha=0.35)
+        
         
         x = gt_kp[...,0]
         y = gt_kp[...,1]
@@ -642,11 +671,16 @@ class Test:
         for p in paf_pairs_indices_10joints:
             plt.plot([gt_kp[p[0]][0], gt_kp[p[1]][0]], [gt_kp[p[0]][1], gt_kp[p[1]][1]], color='magenta', linestyle='-', lw=1)
         
-        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_gt.png'),  dpi=300)
+        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_gt.png'),  dpi=300, pad_inches=0, bbox_inches=extent)
         
         # =========================
         fig, ax = plt.subplots(nrows=1, ncols=1)
-        fig.set_size_inches((5, 5))
+        #fig.set_size_inches((5, 5))
+        ax.set_axis_off()
+        #fig.add_axes(ax)
+        #ax.axis('off')
+        extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        #print("extent", extent)
         
         oriImg = cv2.imread(test_image)  # B,G,R order
         ax.imshow(oriImg[:,:,[2,1,0]], alpha=0.35)
@@ -659,7 +693,7 @@ class Test:
         for p in paf_pairs_indices_10joints:
             plt.plot([pred_kp[p[0]][0], pred_kp[p[1]][0]], [pred_kp[p[0]][1], pred_kp[p[1]][1]], color='gold', linestyle='-', lw=1)
             
-        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_pred.png'),  dpi=300)
+        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_pred.png'),  dpi=300, bbox_inches=extent, pad_inches=0)
         
 #         ax_h = ax.imshow(heatmap_avg[:,:,i], alpha=.70) 
 #         ax.legend([a1, a2], ["GTruth", "Pred"])
