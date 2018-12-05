@@ -671,7 +671,7 @@ class Test:
         for p in paf_pairs_indices_10joints:
             plt.plot([gt_kp[p[0]][0], gt_kp[p[1]][0]], [gt_kp[p[0]][1], gt_kp[p[1]][1]], color='magenta', linestyle='-', lw=1)
         
-        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_gt.png'),  dpi=300, pad_inches=0, bbox_inches=extent)
+        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_gt.png'), dpi=300, pad_inches=0, bbox_inches=extent)
         
         # =========================
         fig, ax = plt.subplots(nrows=1, ncols=1)
@@ -693,7 +693,7 @@ class Test:
         for p in paf_pairs_indices_10joints:
             plt.plot([pred_kp[p[0]][0], pred_kp[p[1]][0]], [pred_kp[p[0]][1], pred_kp[p[1]][1]], color='gold', linestyle='-', lw=1)
             
-        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_pred.png'),  dpi=300, bbox_inches=extent, pad_inches=0)
+        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_pred.png'), dpi=300, bbox_inches=extent, pad_inches=0)
         
 #         ax_h = ax.imshow(heatmap_avg[:,:,i], alpha=.70) 
 #         ax.legend([a1, a2], ["GTruth", "Pred"])
@@ -702,6 +702,54 @@ class Test:
 #         fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '.png'))
     
     
+    def show_overlapped_gt_and_pred_v2(self, test_image, heatmap_avg, gt_kp, pred_kp):
+        # print("gt_kp, gt_kp.shape", gt_kp, gt_kp.shape)  # (10, 2)
+        # print("pred_kp, pred_kp.shape", pred_kp, pred_kp.shape)  # (10, 2)
+        
+        if rmpe_testing:
+            pred_kp = pred_kp[rmpe_to_eggnog_slicing, :]  # rmpe predicted joint 11 is rhip which is joint index 9 in eggnog-common architecture, see sheet 2
+            
+        i = -1  # only background hm
+        
+        # =========================
+        fig = plt.figure()
+        ax1 = fig.add_subplot(1,2,1)
+        ax2 = fig.add_subplot(1,2,2)
+        
+        ax1.set_axis_off()
+        #extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        
+        oriImg = cv2.imread(test_image)  # B,G,R order
+        ax1.imshow(oriImg[:,:,[2,1,0]], alpha=0.35)
+        
+        
+        x = gt_kp[...,0]
+        y = gt_kp[...,1]
+        a1 = ax1.scatter(x, y, c='b', alpha=0.75, s=15)
+#         for n, txt in enumerate(self.joints_short):
+#             ax.annotate(txt, (x[n],y[n]), fontsize=5, color='white')
+        for p in paf_pairs_indices_10joints:
+            ax1.plot([gt_kp[p[0]][0], gt_kp[p[1]][0]], [gt_kp[p[0]][1], gt_kp[p[1]][1]], color='magenta', linestyle='-', lw=1)
+        
+
+        ax2.set_axis_off()
+        #extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        #print("extent", extent)
+        
+        oriImg = cv2.imread(test_image)  # B,G,R order
+        ax2.imshow(oriImg[:,:,[2,1,0]], alpha=0.35)
+        
+        x = pred_kp[...,0]
+        y = pred_kp[...,1]
+        a2 = ax2.scatter(x, y, c='g', alpha=0.75, s=15)
+#         for n, txt in enumerate(self.joints_short):
+#             ax.annotate(txt, (x[n],y[n]), fontsize=5, color='darkslategrey')
+        for p in paf_pairs_indices_10joints:
+            ax2.plot([pred_kp[p[0]][0], pred_kp[p[1]][0]], [pred_kp[p[0]][1], pred_kp[p[1]][1]], color='gold', linestyle='-', lw=1)
+            
+        fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_pred.png'), dpi=300, pad_inches=0)
+        
+
     def show_overlapped_gt_and_pred(self, test_image, heatmap_avg, gt_kp, pred_kp):
         if rmpe_testing:
             pred_kp = pred_kp[rmpe_to_eggnog_slicing, :]  # rmpe predicted joint 11 is rhip which is joint index 9 in eggnog-common architecture, see sheet 2
@@ -858,7 +906,7 @@ class Test:
         
         # show and save overlapped gt and pred
         if img_save:
-            self.show_overlapped_gt_and_pred_v1(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
+            self.show_overlapped_gt_and_pred_v2(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
         
         return loss_hm
                 
@@ -904,7 +952,11 @@ if __name__ == "__main__":
     Usage: provide exp_dir as argv[1], sys.argv[2] e.g., python test_pose.py common_train/0706180200pm/ 50
     For rmpe_test = True python test_pose.py rmpe_test/test_320x240_v2/ 0
     python test_pose.py exp1_v1/1002180300pm/ 100
+    
     python test_pose_videos.py exp1_v1/1005180500pm/ 100 /s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/s18/part1_layouts_p36/20160129_192616_00_Video.avi
+    
+    python test_pose_videos.py exp1_v1/1005180500pm/ 100 /s/red/b/nobackup/data/eggnog_cpm/eggnog_cpm/s18/part2_layouts_p35/20160129_194239_00_Video.avi
+
 
     """
     
