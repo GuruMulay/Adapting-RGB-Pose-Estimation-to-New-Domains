@@ -660,16 +660,16 @@ class Test:
         #print("extent", extent)
         
         oriImg = cv2.imread(test_image)  # B,G,R order
-        ax.imshow(oriImg[:,:,[2,1,0]], alpha=0.35)
+        ax.imshow(oriImg[:,:,[2,1,0]], alpha=1)
         
         
-        x = gt_kp[...,0]
-        y = gt_kp[...,1]
-        a1 = ax.scatter(x, y, c='b', alpha=0.75, s=15)
+        #x = gt_kp[...,0]
+        #y = gt_kp[...,1]
+        #a1 = ax.scatter(x, y, c='b', alpha=0.75, s=15)
 #         for n, txt in enumerate(self.joints_short):
 #             ax.annotate(txt, (x[n],y[n]), fontsize=5, color='white')
-        for p in paf_pairs_indices_10joints:
-            plt.plot([gt_kp[p[0]][0], gt_kp[p[1]][0]], [gt_kp[p[0]][1], gt_kp[p[1]][1]], color='magenta', linestyle='-', lw=1)
+        #for p in paf_pairs_indices_10joints:
+            #plt.plot([gt_kp[p[0]][0], gt_kp[p[1]][0]], [gt_kp[p[0]][1], gt_kp[p[1]][1]], color='magenta', linestyle='-', lw=1)
         
         fig.savefig(os.path.join(self.BASE_DIR_TEST_IMAGES, test_image.split("/")[-1].split(".")[0] + '_gt.png'), dpi=300, pad_inches=0, bbox_inches=extent)
         
@@ -712,15 +712,18 @@ class Test:
         i = -1  # only background hm
         
         # =========================
-        fig = plt.figure()
+        fig = plt.figure() # figsize=(10,5)
         ax1 = fig.add_subplot(1,2,1)
         ax2 = fig.add_subplot(1,2,2)
         
+        #ax1 = plt.Axes(fig,[0,0,1,1])
         ax1.set_axis_off()
-        #extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        #fig.add_axes(ax1)
+        extent = ax1.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        print("extent", extent)
         
         oriImg = cv2.imread(test_image)  # B,G,R order
-        ax1.imshow(oriImg[:,:,[2,1,0]], alpha=0.35)
+        ax1.imshow(oriImg[:,:,[2,1,0]], alpha=0.35)  # extent=(-0.035, 0.035, 6.4350000000000005, 4.835)
         
         
         x = gt_kp[...,0]
@@ -731,13 +734,16 @@ class Test:
         for p in paf_pairs_indices_10joints:
             ax1.plot([gt_kp[p[0]][0], gt_kp[p[1]][0]], [gt_kp[p[0]][1], gt_kp[p[1]][1]], color='magenta', linestyle='-', lw=1)
         
-
+        #ax2 = plt.Axes(fig,[0,0,1,1])
         ax2.set_axis_off()
-        #extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-        #print("extent", extent)
+        #fig.add_axes(ax2)
+        extent = ax2.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        print("extent", extent)
+        
         
         oriImg = cv2.imread(test_image)  # B,G,R order
         ax2.imshow(oriImg[:,:,[2,1,0]], alpha=0.35)
+        
         
         x = pred_kp[...,0]
         y = pred_kp[...,1]
@@ -906,7 +912,7 @@ class Test:
         
         # show and save overlapped gt and pred
         if img_save:
-            self.show_overlapped_gt_and_pred_v2(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
+            self.show_overlapped_gt_and_pred_v1(test_image, heatmap_avg, gt_kp=gt_kp_240x320_10joints, pred_kp=np.array(all_peaks)[:, 0:2])
         
         return loss_hm
                 
