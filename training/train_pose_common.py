@@ -109,7 +109,7 @@ def update_config_as_per_removed_joints():
 update_config_as_per_removed_joints()
 
 
-n_stages = 2
+n_stages = 4
 train_in_finetune_mode = False
 preload_vgg = True
 split_sessionwise = 1  # 0 => version 0; 1 => version 1 with Session objects
@@ -279,7 +279,7 @@ print("crop_to_square", crop_to_square)
 print("------------------ Flags ----------------------------")
 
 
-batch_size = 40
+batch_size = 30
 coco_fraction = 0.0
 eggnog_fraction = 1 - coco_fraction
 
@@ -300,9 +300,9 @@ use_multiple_gpus = None  # set None for 1 gpu, not 1
 
 print("weight_decay", weight_decay)
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2"
 
-BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/1012180000pm/training/"
+BASE_DIR = "/s/red/b/nobackup/data/eggnog_cpm/training_files/exp1_v1/1219180200pm/training/"
 print("creating a directory", BASE_DIR)
 
 os.makedirs(BASE_DIR, exist_ok=True)
