@@ -1,4 +1,25 @@
-# keras-openpose-reproduce
+
+# Adapting RGB Pose Estimation to New Domains
+
+
+<p align="center">
+  <img src="https://gurumulay.github.io/images/vision/thesis/intro_f1.jpg?raw=true" alt=""/>
+</p>
+
+
+## Introduction:
+
+Many multi-modal human computer interaction (HCI) systems interact with users in real-time in part by estimating the user’s pose. For example, Narayana et al.[3] describe a multi-modal interface for an avatar, in which users gesture and/or speak to direct an avatar. As shown in Figure 1, the virtual agent avatar perceives the user’s motions by estimating their pose over time. The agent analyzes the predicted joint locations (marked in yellow), and matches them to known gestures (or to no gesture) and responds appropriately. In this way, pose estimation facilitates gesture comprehension, which in turn helps the system achieve multi-modal communication via gestures and speech.
+
+<p align="center">
+  <img src="https://gurumulay.github.io/images/vision/thesis/arch3_crop_v5.png?raw=true" alt=""/>
+</p>
+
+
+<p align="center">
+  <img src="https://gurumulay.github.io/images/vision/thesis/intro_f2.png?raw=true" alt=""/>
+</p>
+
 
 This is a keras implementation of [Realtime Multi-Person Pose Estimation](https://github.com/ZheC/Realtime_Multi-Person_Pose_Estimation).
 
